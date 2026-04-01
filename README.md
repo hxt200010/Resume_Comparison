@@ -10,6 +10,7 @@ I built this to understand the mechanics behind ATS screening -- how companies f
 
 ## Table of Contents
 
+- [How to Run the ATS Project](#how-to-run-the-ats-project)
 - [Quick Start (Returning Users)](#quick-start-returning-users)
 - [What It Does](#what-it-does)
 - [How the Scoring Works](#how-the-scoring-works)
@@ -28,6 +29,29 @@ I built this to understand the mechanics behind ATS screening -- how companies f
 - [API Reference](#api-reference)
 - [Running Tests](#running-tests)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## How to Run the ATS Project
+
+To start the application, you will need to open two separate terminals from this root folder.
+
+**Terminal 1: Start the Backend (API)**
+1. `cd backend`
+2. Activate the virtual environment:
+   - Windows: `.\.venv\Scripts\activate`
+   - Mac/Linux: `source .venv/bin/activate`
+3. Start the server:
+   `python -m uvicorn app.main:app --reload`
+
+**Terminal 2: Start the Frontend (UI)**
+1. `cd frontend`
+2. Start the development server:
+   `npm run dev`
+
+Once both servers are running, open `http://localhost:3000` in your web browser. You should see "API Connected" in the top right corner.
+
+*Note: If you haven't installed dependencies yet, run `pip install -r requirements.txt` in the backend folder and `npm install` in the frontend folder before starting the servers.*
 
 ---
 
@@ -140,66 +164,6 @@ To make the project easier to clone, test, and run locally without requiring thi
 
 ---
 
-## Project Structure
-
-```
-ats/
-|
-|-- backend/
-|   |-- app/
-|   |   |-- main.py              # FastAPI application entry point
-|   |   |-- config.py            # Scoring weights, thresholds, section patterns
-|   |   |-- models.py            # Pydantic request/response schemas
-|   |   |-- database.py          # Supabase client (save, fetch, delete analyses)
-|   |   |-- routers/
-|   |   |   |-- resume.py        # POST /parse-resume endpoint
-|   |   |   |-- analysis.py      # POST /analyze-match endpoint
-|   |   |   |-- history.py       # GET /history, DELETE /history/{id}
-|   |   |-- services/
-|   |   |   |-- parser.py        # PDF/DOCX text extraction, section detection
-|   |   |   |-- skill_matcher.py # Taxonomy lookup, synonym normalization
-|   |   |   |-- scorer.py        # Weighted scoring pipeline, reject logic
-|   |   |   |-- explainer.py     # Generates explanations and suggestions
-|   |   |-- data/
-|   |       |-- skills_taxonomy.json  # 80+ skills with synonyms and categories
-|   |-- tests/
-|   |   |-- test_scorer.py       # Unit tests for scoring logic
-|   |   |-- test_skill_matcher.py # Unit tests for skill matching
-|   |-- requirements.txt
-|   |-- .env                     # Backend environment variables (not committed)
-|
-|-- frontend/
-|   |-- src/
-|   |   |-- app/
-|   |   |   |-- page.tsx         # Main page with all state management
-|   |   |   |-- layout.tsx       # Root layout, metadata, global styles
-|   |   |   |-- globals.css      # Full design system (dark theme, animations)
-|   |   |-- components/
-|   |   |   |-- FileUpload.tsx   # Drag-and-drop file upload widget
-|   |   |   |-- ResumePanel.tsx  # Left panel: resume input and parsed sections
-|   |   |   |-- JobPanel.tsx     # Right panel: job description input
-|   |   |   |-- ResultsDashboard.tsx  # Full results display after analysis
-|   |   |   |-- ScoreChart.tsx   # Animated score circle and progress bars
-|   |   |   |-- HistoryPanel.tsx # Collapsible list of past analyses
-|   |   |-- lib/
-|   |       |-- api.ts           # API client (calls to the backend)
-|   |       |-- types.ts         # TypeScript type definitions
-|   |       |-- sampleData.ts    # Pre-filled sample data for quick testing
-|   |-- .env.local               # Frontend environment variables (not committed)
-|   |-- package.json
-|
-|-- samples/
-|   |-- sample_resume.txt        # Example resume for testing
-|   |-- sample_job_description.txt  # Example job description for testing
-|
-|-- docs/
-|   |-- tech_stack.md            # Detailed technology documentation
-|
-|-- .gitignore
-|-- README.md
-```
-
----
 
 ## Prerequisites
 

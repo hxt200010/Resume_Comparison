@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { JobDescriptionInput, TailorCoverLetterResult } from '../lib/types';
-import { tailorCoverLetter } from '../lib/api';
+import { tailorCoverLetter, parseResume } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 interface CoverLetterTailorProps {
@@ -14,6 +14,7 @@ export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
   
   const [baseCoverLetter, setBaseCoverLetter] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [result, setResult] = useState<TailorCoverLetterResult | null>(null);
 
   // Get cover letters from DB if logged in
@@ -24,6 +25,26 @@ export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
     const doc = savedCoverLetters.find(d => d.id === docId);
     if (doc) {
       setBaseCoverLetter(doc.content);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const parsed = await parseResume(file);
+      if (parsed?.raw_text) {
+        setBaseCoverLetter(parsed.raw_text);
+      } else {
+        alert("Could not extract text from the file.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to upload and parse file.");
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -131,9 +152,29 @@ export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
           )}
 
           <div>
-            <label className="section-label">Or Paste Base Cover Letter</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="section-label mb-0" style={{ marginBottom: 0 }}>Or Paste Base Cover Letter</label>
+              <div>
+                <input
+                  type="file"
+                  id="coverLetterUpload"
+                  className="hidden"
+                  accept=".pdf,.docx,.txt"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                />
+                <button 
+                  onClick={() => document.getElementById('coverLetterUpload')?.click()}
+                  disabled={isUploading}
+                  className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                >
+                  {isUploading ? 'Uploading...' : '📁 Upload File'}
+                </button>
+              </div>
+            </div>
             <textarea
-              className="input-field min-h-[300px] resize-y text-sm"
+              className="input-field min-h-[300px] resize-y text-sm w-full"
               placeholder="Dear Hiring Manager..."
               value={baseCoverLetter}
               onChange={(e) => setBaseCoverLetter(e.target.value)}
