@@ -1,0 +1,50 @@
+Job Title: Full-Stack Software Engineer
+Company: Innovatech Solutions
+Location: Remote (US)
+
+About Us:
+Innovatech Solutions is a fast-growing SaaS company building next-generation project management tools for enterprise teams. We are looking for a talented Full-Stack Software Engineer to join our engineering team and help build beautiful, scalable web applications.
+
+Job Description:
+We are seeking a Full-Stack Software Engineer to design, develop, and maintain our web platform. You will work closely with product managers, designers, and other engineers to deliver high-quality features that delight our users. The ideal candidate has strong experience with modern JavaScript frameworks, Python backend development, and cloud infrastructure.
+
+Responsibilities:
+- Design and implement scalable frontend components using React and TypeScript
+- Build and maintain RESTful APIs and microservices using Python (FastAPI or Django)
+- Write clean, well-tested, production-ready code
+- Collaborate with cross-functional teams in an agile environment
+- Optimize application performance and ensure responsive design
+- Participate in code reviews and contribute to engineering best practices
+- Deploy and monitor services using AWS and Docker
+
+Required Skills:
+- React
+- TypeScript
+- Python
+- Node.js
+- PostgreSQL
+- REST APIs
+- Git
+- Docker
+
+Preferred Skills:
+- Next.js
+- FastAPI
+- Redis
+- GraphQL
+- AWS
+- CI/CD
+- Tailwind CSS
+- MongoDB
+
+Minimum Experience: 3 years
+
+Degree Requirement: Bachelor's in Computer Science or related field
+
+Benefits:
+- Competitive salary ($120k - $160k)
+- Remote-first culture
+- Health, dental, and vision insurance
+- 401(k) with company match
+- Unlimited PTO
+- Professional development budget

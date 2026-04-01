@@ -1,0 +1,17 @@
+# Environment files (NEVER commit these - they contain your secret keys)
+.env
+.env.local
+.env.production
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# OS
+.DS_Store
+Thumbs.db
