@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ParsedResume, ParsedSections, JobDescriptionInput, AnalysisResult, HistoryEntry } from '../lib/types';
-import { parseResume, analyzeMatch, getHistory, deleteHistoryEntry } from '../lib/api';
+import { parseResume, analyzeMatch, getHistory, deleteHistoryEntry, getDetailedProfile } from '../lib/api';
 import {
   SAMPLE_RESUME_TEXT,
   SAMPLE_JOB_DESCRIPTION,
@@ -140,6 +140,57 @@ function HomeContent() {
     });
     setError(null);
   }, []);
+
+  const handleLoadProfile = useCallback(async () => {
+    if (!user) {
+      setError('You must be logged in to load your saved profile.');
+      return;
+    }
+    setIsParsingResume(true);
+    setError(null);
+    try {
+      const profileData = await getDetailedProfile();
+      let experienceText = profileData.experience || '';
+      try {
+        const parsedExp = JSON.parse(experienceText);
+        if (Array.isArray(parsedExp)) {
+          experienceText = parsedExp.map(exp => `Company: ${exp.company}\nTitle: ${exp.title}\nLocation: ${exp.location}\nDescription: ${exp.description}`).join('\n\n');
+        }
+      } catch (e) {
+        // Leave it as flat string if not JSON
+      }
+
+      const contactLine = [profileData.email, profileData.phone, profileData.linkedin, profileData.portfolio].filter(Boolean).join(' | ');
+      
+      const generatedText = [
+        `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim(),
+        contactLine ? contactLine : '',
+        profileData.skills ? `SKILLS\n${profileData.skills}` : '',
+        experienceText ? `EXPERIENCE\n${experienceText}` : '',
+        profileData.coursework ? `EDUCATION & COURSEWORK\n${profileData.coursework}` : '',
+        profileData.certifications ? `CERTIFICATIONS\n${profileData.certifications}` : ''
+      ].filter(Boolean).join('\n\n');
+
+      setResume({
+        file_name: 'saved_profile_data.txt',
+        raw_text: generatedText,
+        sections: {
+          contact: `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim(),
+          summary: '',
+          skills: profileData.skills || '',
+          experience: experienceText,
+          education: profileData.coursework || '',
+          projects: '',
+          certifications: profileData.certifications || '',
+        },
+        skills_found: profileData.skills ? profileData.skills.split(',').map((s: string) => s.trim().toLowerCase()) : [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
+    } finally {
+      setIsParsingResume(false);
+    }
+  }, [user]);
 
   // ── Job Handlers ────────────────────────────
   const handleJobChange = useCallback((updates: Partial<JobDescriptionInput>) => {
@@ -337,14 +388,20 @@ function HomeContent() {
         {/* ─── Comparison Workspace ─────────────── */}
         <div ref={comparisonRef} id="comparison-section" className="pt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
-            <ResumePanel
-              resume={resume}
-              isLoading={isParsingResume}
-              onFileSelect={handleFileSelect}
-              onResumeTextChange={handleResumeTextChange}
-              onSectionChange={handleSectionChange}
-              onLoadSample={handleLoadSampleResume}
-            />
+            <div className="md:col-span-1 border-r" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="p-5 h-full">
+                <ResumePanel
+                  resume={resume}
+                  isLoading={isParsingResume}
+                  onFileSelect={handleFileSelect}
+                  onResumeTextChange={handleResumeTextChange}
+                  onSectionChange={handleSectionChange}
+                  onLoadSample={handleLoadSampleResume}
+                  onLoadProfile={handleLoadProfile}
+                  isLoggedIn={!!user}
+                />
+              </div>
+            </div>
             <JobPanel
               job={job}
               onJobChange={handleJobChange}

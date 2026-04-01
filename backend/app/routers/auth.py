@@ -99,3 +99,14 @@ def save_document(req: SaveDocumentRequest, current_user: User = Depends(get_cur
     db.add(doc)
     db.commit()
     return {"message": f"{req.doc_type} saved successfully!"}
+
+@router.delete("/document/{doc_id}", tags=["Profile"])
+def delete_document(doc_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Delete a saved document from the user's profile."""
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == current_user.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    db.delete(doc)
+    db.commit()
+    return {"message": "Document deleted successfully"}

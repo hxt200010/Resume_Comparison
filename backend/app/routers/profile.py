@@ -23,6 +23,18 @@ def update_profile(updates: UserProfileUpdate, current_user: User = Depends(get_
         profile = UserProfile(user_id=current_user.id)
         db.add(profile)
 
+    if updates.first_name is not None:
+        profile.first_name = updates.first_name
+    if updates.last_name is not None:
+        profile.last_name = updates.last_name
+    if updates.email is not None:
+        profile.email = updates.email
+    if updates.phone is not None:
+        profile.phone = updates.phone
+    if updates.linkedin is not None:
+        profile.linkedin = updates.linkedin
+    if updates.portfolio is not None:
+        profile.portfolio = updates.portfolio
     if updates.resume_text is not None:
         profile.resume_text = updates.resume_text
     if updates.experience is not None:

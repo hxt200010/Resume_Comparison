@@ -3,9 +3,10 @@ ATS Resume Screener - Resume Router
 Handles resume upload and parsing.
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.models import ParsedResume
+from app.models import ParsedResume, ExtractProfileRequest, ExtractProfileResult
 from app.services.parser import extract_text, detect_sections
 from app.services.skill_matcher import extract_skills_from_text
+from app.services.extractor import extract_resume_profile
 
 router = APIRouter(tags=["Resume"])
 
@@ -63,3 +64,15 @@ async def parse_resume(file: UploadFile = File(...)):
         sections=sections,
         skills_found=skills_found,
     )
+
+@router.post("/extract-profile", response_model=ExtractProfileResult)
+async def extract_profile_endpoint(request: ExtractProfileRequest):
+    """
+    Takes raw resume text and parses it into a structured Profile API response.
+    Specifically parses out an array of experiences and structured skills.
+    """
+    try:
+        result = await extract_resume_profile(request)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

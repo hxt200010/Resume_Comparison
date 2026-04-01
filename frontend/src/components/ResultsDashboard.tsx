@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AnalysisResult, ParsedResume, JobDescriptionInput, TailorResult } from '../lib/types';
 import { tailorResume } from '../lib/api';
 import TailorPanel from './TailorPanel';
+import CoverLetterTailor from './CoverLetterTailor';
 
 interface ResultsDashboardProps {
   result: AnalysisResult;
@@ -496,7 +497,11 @@ export default function ResultsDashboard({ result, resume, job }: ResultsDashboa
         isLoading={isTailoring}
         onTailor={handleTailor}
         missingSkillsCount={result.missing_required.length + result.missing_preferred.length}
+        resume={resume}
       />
+
+      {/* Cover Letter Panel */}
+      <CoverLetterTailor job={job} />
     </div>
   );
 }

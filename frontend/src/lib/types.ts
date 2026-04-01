@@ -76,3 +76,13 @@ export interface TailorResult {
   professional_summary: string;
   experience_bullets: TailoredExperience[];
 }
+
+export interface TailorCoverLetterRequest {
+  cover_letter_text: string;
+  job: JobDescriptionInput;
+}
+
+export interface TailorCoverLetterResult {
+  revised_cover_letter: string;
+  explanation: string;
+}

@@ -3,13 +3,13 @@ ATS Resume Screener - Analysis Router
 Handles resume-to-job matching and analysis.
 """
 from fastapi import APIRouter, HTTPException
-from app.models import AnalysisRequest, AnalysisResult, TailorRequest, TailorResult, JobDescriptionInput, ExtractJobRequest
+from app.models import AnalysisRequest, AnalysisResult, TailorRequest, TailorResult, JobDescriptionInput, ExtractJobRequest, ReviseRequest, ReviseResult, TailorCoverLetterRequest, TailorCoverLetterResult
 from app.services.scorer import calculate_overall_score
 from app.services.explainer import generate_explanation, generate_suggestions
-from app.services.tailor import tailor_resume
-from app.services.extractor import extract_job_details
+from app.services.tailor import tailor_resume, tailor_cover_letter
+from app.services.extractor import extract_job_details, revise_document
 from app.database import save_analysis, User
-from app.services.auth import get_current_user_optional
+from app.services.auth import get_current_user_optional, get_current_user
 from fastapi import Depends
 
 router = APIRouter(tags=["Analysis"])
@@ -46,6 +46,36 @@ async def tailor_resume_endpoint(request: TailorRequest):
             detail=f"Failed to tailor resume: {str(e)}"
         )
 
+
+@router.post("/revise-document", response_model=ReviseResult)
+async def revise_document_endpoint(request: ReviseRequest):
+    """
+    Rewrite a user's resume or cover letter using AI.
+    """
+    try:
+        result = await revise_document(request)
+        return result
+    except Exception as e:
+        print(f"[API] Error revising document: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to revise document: {str(e)}"
+        )
+
+@router.post("/tailor-cover-letter", response_model=TailorCoverLetterResult)
+async def tailor_cover_letter_endpoint(request: TailorCoverLetterRequest):
+    """
+    Rewrite the candidate's cover letter to integrate the requested job description natively.
+    """
+    try:
+        result = await tailor_cover_letter(request)
+        return result
+    except Exception as e:
+        print(f"[API] Error tailoring cover letter: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to tailor cover letter: {str(e)}"
+        )
 
 @router.post("/analyze-match", response_model=AnalysisResult)
 async def analyze_match(request: AnalysisRequest, current_user: User = Depends(get_current_user_optional)):

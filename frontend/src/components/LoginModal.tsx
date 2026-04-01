@@ -20,6 +20,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [noPromoEmails, setNoPromoEmails] = useState(false);
 
@@ -33,6 +34,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setLastName('');
     setEmail('');
     setPassword('');
+    setConfirmPassword('');
     setShowPassword(false);
     setNoPromoEmails(false);
     setError('');
@@ -72,7 +74,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   // ── SIGNUP Step 2 submit ───────────────────────
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError('Please fill in all fields'); return; }
+    if (!email || !password || !confirmPassword) { setError('Please fill in all fields'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setError('');
     setIsLoading(true);
@@ -445,6 +448,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         transition: 'background 0.3s ease',
                       }} />
                     ))}
+                  </div>
+
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <label className="section-label">Confirm Password</label>
+                    <input
+                      type="password" className="input-field" placeholder="Re-type password"
+                      value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isLoading}
+                    />
                   </div>
                   <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
                     Use 6+ characters with a mix of letters, numbers & symbols

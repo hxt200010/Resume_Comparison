@@ -1,7 +1,7 @@
 // ATS Resume Screener - API Client
 // Handles all communication with the FastAPI backend
 
-import { ParsedResume, JobDescriptionInput, AnalysisResult, HistoryEntry, TailorResult } from './types';
+import { ParsedResume, JobDescriptionInput, AnalysisResult, HistoryEntry, TailorResult, TailorCoverLetterResult } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -77,6 +77,27 @@ export async function tailorResume(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to tailor resume' }));
     throw new Error(error.detail || 'Failed to tailor resume');
+  }
+
+  return response.json();
+}
+
+/**
+ * Request AI to rewrite a cover letter to include missing skills and match a job description
+ */
+export async function tailorCoverLetter(
+  cover_letter_text: string,
+  job: JobDescriptionInput,
+): Promise<TailorCoverLetterResult> {
+  const response = await fetch(`${API_URL}/tailor-cover-letter`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cover_letter_text, job }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to tailor cover letter' }));
+    throw new Error(error.detail || 'Failed to tailor cover letter');
   }
 
   return response.json();
@@ -160,6 +181,15 @@ export async function saveDocument(doc_type: string, name: string, content: stri
   return res.json();
 }
 
+export async function deleteDocument(doc_id: number) {
+  const res = await fetch(`${API_URL}/auth/document/${doc_id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to delete document');
+  return res.json();
+}
+
 export async function getDetailedProfile() {
   const res = await fetch(`${API_URL}/profile`, {
     headers: getAuthHeaders()
@@ -191,6 +221,36 @@ export async function extractJob(raw_text: string): Promise<JobDescriptionInput>
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to extract job details' }));
     throw new Error(error.detail || 'Failed to extract job details');
+  }
+
+  return response.json();
+}
+
+export async function extractProfile(raw_text: string) {
+  const response = await fetch(`${API_URL}/extract-profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_text }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to extract profile details' }));
+    throw new Error(error.detail || 'Failed to extract profile details');
+  }
+
+  return response.json();
+}
+
+export async function reviseDocument(document_text: string, doc_type: string) {
+  const response = await fetch(`${API_URL}/revise-document`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_text, doc_type }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to revise document' }));
+    throw new Error(error.detail || 'Failed to revise document');
   }
 
   return response.json();

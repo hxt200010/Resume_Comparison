@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ParsedResume, ParsedSections } from '../lib/types';
 import FileUpload from './FileUpload';
 
@@ -11,6 +11,8 @@ interface ResumePanelProps {
   onResumeTextChange: (text: string) => void;
   onSectionChange: (section: keyof ParsedSections, value: string) => void;
   onLoadSample: () => void;
+  onLoadProfile?: () => void;
+  isLoggedIn?: boolean;
 }
 
 export default function ResumePanel({
@@ -18,8 +20,13 @@ export default function ResumePanel({
   isLoading,
   onFileSelect,
   onResumeTextChange,
+  onSectionChange,
   onLoadSample,
+  onLoadProfile,
+  isLoggedIn,
 }: ResumePanelProps) {
+  const [showAllSkills, setShowAllSkills] = useState(false);
+
   return (
     <div className="glass-card flex flex-col gap-5">
       {/* Header */}
@@ -35,12 +42,22 @@ export default function ResumePanel({
             <p className="text-xs text-[var(--text-muted)] mt-0.5">PDF, DOCX, or paste text</p>
           </div>
         </div>
-        <button onClick={onLoadSample} className="btn-secondary" id="load-sample-resume">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          Load Sample
-        </button>
+        <div className="flex items-center gap-2">
+          {isLoggedIn && (
+            <button onClick={onLoadProfile} className="btn-secondary" id="load-profile-resume">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Use My Profile
+            </button>
+          )}
+          <button onClick={onLoadSample} className="btn-secondary" id="load-sample-resume">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Load Sample
+          </button>
+        </div>
       </div>
 
       {/* File Upload */}
@@ -68,15 +85,26 @@ export default function ResumePanel({
             <div className="h-px flex-1" style={{ background: 'var(--border-color)' }} />
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {resume.skills_found.slice(0, 15).map((skill) => (
+            {resume.skills_found.slice(0, showAllSkills ? undefined : 15).map((skill) => (
               <span key={skill} className="chip chip-info text-xs">
                 {skill}
               </span>
             ))}
-            {resume.skills_found.length > 15 && (
-              <span className="chip chip-neutral text-xs">
+            {!showAllSkills && resume.skills_found.length > 15 && (
+              <button 
+                onClick={() => setShowAllSkills(true)}
+                className="chip chip-neutral text-xs cursor-pointer hover:bg-black/10 transition-colors"
+              >
                 +{resume.skills_found.length - 15} more
-              </span>
+              </button>
+            )}
+            {showAllSkills && resume.skills_found.length > 15 && (
+              <button 
+                onClick={() => setShowAllSkills(false)}
+                className="chip chip-neutral text-xs cursor-pointer hover:bg-black/10 transition-colors"
+              >
+                Show less
+              </button>
             )}
           </div>
         </div>

@@ -33,6 +33,12 @@ class UserProfile(Base):
     __tablename__ = "user_profiles"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    first_name = Column(String, default="")
+    last_name = Column(String, default="")
+    email = Column(String, default="")
+    phone = Column(String, default="")
+    linkedin = Column(String, default="")
+    portfolio = Column(String, default="")
     resume_text = Column(Text, default="")
     experience = Column(Text, default="")
     certifications = Column(Text, default="")

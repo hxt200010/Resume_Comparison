@@ -5,7 +5,7 @@ Uses OpenAI to rewrite resume sections to better match the job description.
 import os
 from openai import AsyncOpenAI
 from app.config import OPENAI_API_KEY
-from app.models import TailorRequest, TailorResult, TailoredExperience
+from app.models import TailorRequest, TailorResult, TailoredExperience, TailorCoverLetterRequest, TailorCoverLetterResult
 
 # Initialize async client if key exists
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -46,7 +46,8 @@ CRITICAL RULES:
 2. Only weave in a missing keyword if it logically fits into their existing experience or summary.
 3. Write a compelling, concise Professional Summary that positions them well.
 4. Rewrite their existing experience bullet points to be stronger (using action verbs and metrics) and naturally include the missing keywords where appropriate.
-5. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
+5. LENGTH LIMIT: Keep the entire output as concise as possible, restricting the total length to exactly ONE page if possible. If the candidate has extensive career history naturally warranting 2 pages, limit the output strictly to TWO pages maximum. Be ruthless with word economy.
+6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
 """
 
     user_message = f"""
@@ -73,9 +74,52 @@ ORIGINAL EXPERIENCE BULLETS:
         return result
 
     except Exception as e:
-        print(f"Error calling OpenAI API: {e}")
-        # Return empty/mocked result on failure to prevent total crash
-        return TailorResult(
-            professional_summary=f"Failed to generate summary. Error: {str(e)}",
-            experience_bullets=[]
+        print(f"Error calling OpenAI for tailoring: {e}")
+        raise
+
+async def tailor_cover_letter(request: TailorCoverLetterRequest) -> TailorCoverLetterResult:
+    """
+    Calls OpenAI to rewrite the user's cover letter based on the provided job description.
+    """
+    if not client:
+        raise ValueError("OPENAI_API_KEY is missing. Cannot tailor cover letter.")
+
+    job_title = request.job.title or "the requested job role"
+    job_company = request.job.company or "the target company"
+    
+    system_prompt = f"""
+You are an expert Career Coach and Professional Writer. 
+Your task is to tailor a candidate's existing cover letter for a '{job_title}' position at '{job_company}'.
+
+CRITICAL RULES:
+1. Write like a human, not too AI-alike. Be engaging, authentic, and passionate. Avoid clichés.
+2. Carefully analyze the job description to find the most important required skills.
+3. Compare the job posting with the candidate's existing cover letter layout.
+4. Smoothly rewrite and weave in the required keywords and experiences so that it directly matches the job posting.
+5. Preserve the candidate's original voice, tone, and contact structure.
+6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
+"""
+
+    user_message = f"""
+ORIGINAL COVER LETTER:
+{request.cover_letter_text}
+
+JOB DESCRIPTION:
+{request.job.description}
+"""
+
+    try:
+        response = await client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            response_format=TailorCoverLetterResult,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.7,
+            max_tokens=1500
         )
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"Error calling OpenAI for cover letter tailoring: {e}")
+        raise

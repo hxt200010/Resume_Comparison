@@ -8,6 +8,7 @@ interface TailorPanelProps {
   isLoading: boolean;
   onTailor: () => void;
   missingSkillsCount: number;
+  resume: any;
 }
 
 export default function TailorPanel({
@@ -15,10 +16,67 @@ export default function TailorPanel({
   isLoading,
   onTailor,
   missingSkillsCount,
+  resume,
 }: TailorPanelProps) {
   if (missingSkillsCount === 0 && !tailorResult && !isLoading) {
     return null; // Don't show if there's nothing to tailor
   }
+
+  const exportTextFile = (type: 'txt' | 'doc') => {
+    if (!tailorResult) return;
+    
+    // Instead of randomly stripping experience strings, we can just replace the experience section in the resume text
+    const bulletsText = tailorResult.experience_bullets.map(b => `- ${b.tailored}`).join('\n');
+    let content = `${tailorResult.professional_summary}\n\nExperience:\n${bulletsText}`;
+    
+    let mime = 'text/plain';
+    
+    if (type === 'doc') {
+      const contactText = resume?.sections?.contact?.replace(/\n/g, ' | ') || 'Resume';
+      
+      content = `
+<html>
+<head>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; line-height: 1.6; color: #333; }
+    h1 { font-size: 24pt; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; color: #111; text-align: center; }
+    p.contact { font-size: 10pt; text-align: center; margin-bottom: 20px; color: #555; }
+    h3 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 2px; margin-top: 20px; font-weight: bold; color: #222; text-transform: uppercase; }
+    p { font-size: 11pt; margin-bottom: 10px; }
+    ul { margin-top: 5px; padding-left: 20px; }
+    li { font-size: 11pt; margin-bottom: 6px; }
+    .bold { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>${resume?.sections?.contact?.split('\n')[0] || 'Resume'}</h1>
+  <p class="contact">${contactText}</p>
+  
+  <h3>Professional Summary</h3>
+  <p>${tailorResult.professional_summary}</p>
+  
+  <h3>Experience</h3>
+  <ul>
+    ${tailorResult.experience_bullets.map(b => `<li>${b.tailored}</li>`).join('')}
+  </ul>
+
+  ${resume?.sections?.education ? `<h3>Education</h3><p>${resume.sections.education.replace(/\n/g, '<br>')}</p>` : ''}
+  ${resume?.sections?.certifications ? `<h3>Certifications</h3><p>${resume.sections.certifications.replace(/\n/g, '<br>')}</p>` : ''}
+</body>
+</html>`;
+      mime = 'application/msword';
+    }
+    
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Tailored_Resume.${type}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="result-card result-card-full animate-fade-in-up mt-6 border-2" style={{ borderColor: 'var(--accent-subtle)' }}>
@@ -58,6 +116,17 @@ export default function TailorPanel({
 
       {tailorResult && (
         <div className="mt-6 pt-6 border-t animate-fade-in" style={{ borderColor: 'var(--border-color)' }}>
+          
+          <div className="flex justify-end gap-2 mb-4">
+             <button onClick={() => exportTextFile('txt')} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export .txt
+             </button>
+             <button onClick={() => exportTextFile('doc')} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: '#2563eb' }}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export .doc
+             </button>
+          </div>
           
           <div className="mb-6">
             <h4 className="text-sm font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--accent)' }}>

@@ -124,6 +124,8 @@ class UserProfileSchema(BaseModel):
     """Schema for representing a user profile."""
     id: int
     user_id: int
+    first_name: str = ""
+    last_name: str = ""
     resume_text: str = ""
     experience: str = ""
     certifications: str = ""
@@ -135,9 +137,59 @@ class UserProfileSchema(BaseModel):
 
 class UserProfileUpdate(BaseModel):
     """Schema for updating a user profile."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    portfolio: Optional[str] = None
     resume_text: Optional[str] = None
     experience: Optional[str] = None
     certifications: Optional[str] = None
     skills: Optional[str] = None
     coursework: Optional[str] = None
 
+
+# ── AI Tailoring Models ───────────────────────────────────
+
+class TailorCoverLetterRequest(BaseModel):
+    cover_letter_text: str
+    job: JobDescriptionInput
+
+class TailorCoverLetterResult(BaseModel):
+    revised_cover_letter: str
+    explanation: str
+
+# ── AI Revision Models ────────────────────────────────────
+
+class ReviseRequest(BaseModel):
+    """Request body for AI document revision."""
+    document_text: str
+    doc_type: str = "cover_letter"
+
+class ReviseResult(BaseModel):
+    """Result of AI document revision."""
+    revised_text: str
+
+# ── AI Profile Extraction Models ───────────────────────────
+
+class ExtractProfileRequest(BaseModel):
+    raw_text: str
+
+class ProfileExperience(BaseModel):
+    company: str
+    title: str
+    location: str
+    description: str
+
+class ExtractProfileResult(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    phone: str
+    linkedin: str
+    portfolio: str
+    skills: str
+    certifications: str
+    coursework: str
+    experiences: list[ProfileExperience]
