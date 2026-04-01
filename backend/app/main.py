@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import CORS_ORIGINS, API_HOST, API_PORT
-from app.routers import resume, analysis, history, auth
+from app.routers import resume, analysis, history, auth, profile
 from app.database import init_tables
 
 
@@ -49,6 +49,7 @@ app.include_router(resume.router)
 app.include_router(analysis.router)
 app.include_router(history.router)
 app.include_router(auth.router)
+app.include_router(profile.router)
 
 
 @app.get("/health", tags=["Health"])

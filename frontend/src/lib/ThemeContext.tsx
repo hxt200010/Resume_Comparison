@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-export type ThemeName = 'light' | 'soft-dark' | 'warm' | 'ocean';
+export type ThemeName = 'light' | 'soft-dark' | 'warm' | 'ocean' | 'midnight' | 'sunset';
 
 interface ThemeInfo {
   name: ThemeName;
@@ -35,6 +35,18 @@ export const THEMES: ThemeInfo[] = [
     label: 'Ocean Calm',
     description: 'Cool and focused',
     preview: { bg: '#f4f7f9', card: '#ffffff', accent: '#3a8f9f' },
+  },
+  {
+    name: 'midnight',
+    label: 'Midnight Cyber',
+    description: 'Deep and vibrant',
+    preview: { bg: '#0f0a1f', card: '#1c1535', accent: '#b86bfc' },
+  },
+  {
+    name: 'sunset',
+    label: 'Sunset Glow',
+    description: 'Warm and fiery',
+    preview: { bg: '#181110', card: '#2b1f1c', accent: '#ff7e67' },
   },
 ];
 

@@ -10,6 +10,11 @@ interface HistoryPanelProps {
 }
 
 export default function HistoryPanel({ history, onSelect, onDelete }: HistoryPanelProps) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  const currentHistory = history.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const getScoreColor = (score: number) => {
     if (score >= 75) return 'var(--score-high)';
     if (score >= 50) return 'var(--score-mid)';
@@ -50,7 +55,7 @@ export default function HistoryPanel({ history, onSelect, onDelete }: HistoryPan
       </div>
 
       <div className="space-y-2">
-        {history.map((entry, i) => (
+        {currentHistory.map((entry, i) => (
           <div
             key={entry.id}
             className="history-entry group animate-fade-in-up"
@@ -105,6 +110,30 @@ export default function HistoryPanel({ history, onSelect, onDelete }: HistoryPan
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-2">
+          <span className="text-xs text-[var(--text-muted)]">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 rounded text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] disabled:opacity-50 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 rounded text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)] disabled:opacity-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

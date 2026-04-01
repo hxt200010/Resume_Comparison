@@ -26,6 +26,20 @@ class User(Base):
     # Relationships
     history = relationship("AnalysisHistory", back_populates="user")
     documents = relationship("Document", back_populates="user")
+    profile = relationship("UserProfile", back_populates="user", uselist=False)
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    resume_text = Column(Text, default="")
+    experience = Column(Text, default="")
+    certifications = Column(Text, default="")
+    skills = Column(Text, default="")
+    coursework = Column(Text, default="")
+
+    user = relationship("User", back_populates="profile")
 
 
 class Document(Base):

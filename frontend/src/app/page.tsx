@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { ParsedResume, ParsedSections, JobDescriptionInput, AnalysisResult, HistoryEntry } from '../lib/types';
 import { parseResume, analyzeMatch, getHistory, deleteHistoryEntry } from '../lib/api';
 import {
@@ -252,14 +253,19 @@ function HomeContent() {
 
               {/* Auth Button */}
               {user ? (
-                <div className="flex items-center gap-2 border-l pl-3 ml-2" style={{ borderColor: 'var(--border-color)' }}>
-                  <div className="text-xs max-w-[100px] truncate" style={{ color: 'var(--text-primary)' }}>
-                    {user.email}
+                <>
+                  <Link href="/profile" className="text-sm font-medium hover:underline ml-4" style={{ color: 'var(--accent)' }}>
+                    My Profile
+                  </Link>
+                  <div className="flex items-center gap-2 border-l pl-3 ml-3" style={{ borderColor: 'var(--border-color)' }}>
+                    <div className="text-xs max-w-[100px] truncate" style={{ color: 'var(--text-primary)' }}>
+                      {user.email}
+                    </div>
+                    <button onClick={logout} className="text-xs hover:underline text-red-500">
+                      Logout
+                    </button>
                   </div>
-                  <button onClick={logout} className="text-xs hover:underline text-red-500">
-                    Logout
-                  </button>
-                </div>
+                </>
               ) : (
                 <button
                   onClick={() => setIsLoginOpen(true)}
@@ -391,11 +397,5 @@ function HomeContent() {
 }
 
 export default function Home() {
-  return (
-    <AuthProvider>
-      <ThemeProvider>
-        <HomeContent />
-      </ThemeProvider>
-    </AuthProvider>
-  );
+  return <HomeContent />;
 }

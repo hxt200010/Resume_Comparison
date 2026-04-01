@@ -125,6 +125,19 @@ These weights are defined in `backend/app/config.py` and can be changed to suit 
 
 No external AI APIs are used for the core functionality. The scoring, matching, and explanations are all rule-based and run locally.
 
+### Database Architecture & Supabase (Important Note)
+
+**What is Supabase?**
+Supabase is an open-source Firebase alternative that provides a scalable PostgreSQL cloud database, built-in authentication, and real-time subscriptions out of the box.
+
+**Purpose & Contribution:**
+The original design of this ATS Screener used Supabase to store all user authentication data, document files, and the history of every resume scan in the cloud. This allowed users to log in from anywhere and instantly sync their analysis histories across devices.
+
+**Current State (Local SQLite):**
+To make the project easier to clone, test, and run locally without requiring third-party cloud accounts, **the project's database driver has been recently updated to use local SQLite (`ats.db`) instead of Supabase by default.** 
+- All profiles, resumes, and history analyses are currently saved directly on your hard drive. 
+- You still get the full database experience (login, registering, saving history), but the data remains local, secure, and completely independent of any internet database connection.
+
 ---
 
 ## Project Structure

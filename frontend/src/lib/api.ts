@@ -160,6 +160,24 @@ export async function saveDocument(doc_type: string, name: string, content: stri
   return res.json();
 }
 
+export async function getDetailedProfile() {
+  const res = await fetch(`${API_URL}/profile`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to fetch profile');
+  return res.json();
+}
+
+export async function updateDetailedProfile(data: any) {
+  const res = await fetch(`${API_URL}/profile`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to update profile');
+  return res.json();
+}
+
 /**
  * Request AI to extract job details from a raw posting string
  */

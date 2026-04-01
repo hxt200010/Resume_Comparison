@@ -116,3 +116,28 @@ class TailorResult(BaseModel):
     """Response containing tailored resume sections."""
     professional_summary: str = ""
     experience_bullets: list[TailoredExperience] = []
+
+
+# ── Profile Models ────────────────────────────────────────
+
+class UserProfileSchema(BaseModel):
+    """Schema for representing a user profile."""
+    id: int
+    user_id: int
+    resume_text: str = ""
+    experience: str = ""
+    certifications: str = ""
+    skills: str = ""
+    coursework: str = ""
+
+    class Config:
+        from_attributes = True
+
+class UserProfileUpdate(BaseModel):
+    """Schema for updating a user profile."""
+    resume_text: Optional[str] = None
+    experience: Optional[str] = None
+    certifications: Optional[str] = None
+    skills: Optional[str] = None
+    coursework: Optional[str] = None
+

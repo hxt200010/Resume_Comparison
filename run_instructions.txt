@@ -1,0 +1,23 @@
+How to Run the ATS Project
+==========================
+
+To start the application, you will need to open two separate terminals from this root folder (where this file is located).
+
+Terminal 1: Start the Backend (API)
+-----------------------------------
+1. cd backend
+2. Activate the virtual environment:
+   - Windows: .\.venv\Scripts\activate
+   - Mac/Linux: source .venv/bin/activate
+3. Start the server:
+   python -m uvicorn app.main:app --reload
+
+Terminal 2: Start the Frontend (UI)
+-----------------------------------
+1. cd frontend
+2. Start the development server:
+   npm run dev
+
+Once both servers are running, open http://localhost:3000 in your web browser. You should see "API Connected" in the top right corner.
+
+Note: If you haven't installed dependencies yet, run `pip install -r requirements.txt` in the backend folder and `npm install` in the frontend folder before starting the servers.
