@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ParsedResume, ParsedSections, JobDescriptionInput, AnalysisResult, HistoryEntry } from '../lib/types';
 import { parseResume, analyzeMatch, getHistory, deleteHistoryEntry } from '../lib/api';
 import {
@@ -13,10 +13,15 @@ import {
   SAMPLE_MIN_EXPERIENCE,
   SAMPLE_DEGREE,
 } from '../lib/sampleData';
+import { ThemeProvider } from '../lib/ThemeContext';
+import { AuthProvider, useAuth } from '../components/AuthContext';
+import LoginModal from '../components/LoginModal';
 import ResumePanel from '../components/ResumePanel';
 import JobPanel from '../components/JobPanel';
+import AnalyzeButton from '../components/AnalyzeButton';
 import ResultsDashboard from '../components/ResultsDashboard';
 import HistoryPanel from '../components/HistoryPanel';
+import ThemeSelector from '../components/ThemeSelector';
 
 const EMPTY_JOB: JobDescriptionInput = {
   title: '',
@@ -28,7 +33,7 @@ const EMPTY_JOB: JobDescriptionInput = {
   degree_required: '',
 };
 
-export default function Home() {
+function HomeContent() {
   // State
   const [resume, setResume] = useState<ParsedResume | null>(null);
   const [job, setJob] = useState<JobDescriptionInput>(EMPTY_JOB);
@@ -36,9 +41,15 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+
+  // Auth State
+  const { user, logout } = useAuth();
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  const comparisonRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Check backend health on mount
   useEffect(() => {
@@ -66,14 +77,11 @@ export default function Home() {
     loadHistory();
   }, []);
 
-  // Reload history after analysis
   const refreshHistory = useCallback(async () => {
     try {
       const data = await getHistory();
       setHistory(data);
-    } catch {
-      // Silently fail
-    }
+    } catch {}
   }, []);
 
   // ── Resume Handlers ─────────────────────────
@@ -105,10 +113,7 @@ export default function Home() {
   const handleSectionChange = useCallback((section: keyof ParsedSections, value: string) => {
     setResume((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        sections: { ...prev.sections, [section]: value },
-      };
+      return { ...prev, sections: { ...prev.sections, [section]: value } };
     });
   }, []);
 
@@ -161,8 +166,10 @@ export default function Home() {
     try {
       const analysisResult = await analyzeMatch(resume, job);
       setResult(analysisResult);
-      // Refresh history after analysis
       await refreshHistory();
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
@@ -176,6 +183,9 @@ export default function Home() {
   const handleHistorySelect = useCallback((entry: HistoryEntry) => {
     if (entry.result) {
       setResult(entry.result);
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     }
   }, []);
 
@@ -184,55 +194,120 @@ export default function Home() {
     setHistory((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const scrollToComparison = () => {
+    comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div className="relative z-10 min-h-screen">
-      {/* Header */}
-      <header className="border-b border-white/[0.05] backdrop-blur-xl bg-[var(--bg-primary)]/80 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="min-h-screen">
+      {/* ─── Header / Navigation ────────────────── */}
+      <header className="border-b sticky top-0 z-50 backdrop-blur-md" style={{ borderColor: 'var(--nav-border)', background: 'var(--nav-bg)' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
+                <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <div>
-                <h1 className="text-base font-bold text-white tracking-tight">
-                  ATS Resume Screener
-                </h1>
-                <p className="text-[10px] text-slate-500 -mt-0.5">AI-Powered Resume Analysis</p>
-              </div>
+              <span className="text-base font-bold tracking-tight" style={{ color: 'var(--text-heading)' }}>
+                ATS Screener
+              </span>
             </div>
 
-            {/* Backend Status */}
-            <div className="flex items-center gap-2">
+            {/* Nav Links */}
+            <nav className="hidden sm:flex items-center gap-5">
+              <button
+                onClick={scrollToComparison}
+                className="text-sm font-medium transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Compare
+              </button>
+              <a
+                href="#history-section"
+                className="text-sm font-medium transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                History
+              </a>
+            </nav>
+
+            {/* Right: Theme + Status */}
+            <div className="flex items-center gap-3">
+              <ThemeSelector />
               {backendOnline !== null && (
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] ${
-                  backendOnline
-                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-green-400' : 'bg-red-400'}`} />
-                  {backendOnline ? 'API Connected' : 'API Offline'}
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium`}
+                  style={{
+                    background: backendOnline ? 'var(--success-bg)' : 'var(--danger-bg)',
+                    color: backendOnline ? 'var(--success)' : 'var(--danger)',
+                    border: `1px solid ${backendOnline ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: backendOnline ? 'var(--success)' : 'var(--danger)' }} />
+                  {backendOnline ? 'Connected' : 'Offline'}
                 </div>
               )}
+
+              {/* Auth Button */}
+              {user ? (
+                <div className="flex items-center gap-2 border-l pl-3 ml-2" style={{ borderColor: 'var(--border-color)' }}>
+                  <div className="text-xs max-w-[100px] truncate" style={{ color: 'var(--text-primary)' }}>
+                    {user.email}
+                  </div>
+                  <button onClick={logout} className="text-xs hover:underline text-red-500">
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="btn-primary ml-2 py-1 px-3 text-xs"
+                >
+                  Log In
+                </button>
+              )}
+              
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Modals */}
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+
+      {/* ─── Hero Section ───────────────────────── */}
+      {!result && (
+        <section className="hero-section animate-fade-in-up">
+          <h1 className="hero-title">
+            Compare your resume to any<br />
+            <span className="gradient-text">job description in seconds</span>
+          </h1>
+          <p className="hero-subtitle">
+            Upload your resume, paste the job posting, and get a clear match score
+            with missing skills analysis and improvement suggestions.
+          </p>
+          <button onClick={scrollToComparison} className="btn-hero" id="hero-cta">
+            <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Start Comparison
+          </button>
+        </section>
+      )}
+
+      {/* ─── Main Content ───────────────────────── */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         {/* Error Banner */}
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-fade-in">
-            <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3 animate-fade-in"
+            style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <div className="flex-1">
-              <p className="text-sm text-red-300">{error}</p>
-            </div>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+            <p className="flex-1 text-sm" style={{ color: 'var(--danger)' }}>{error}</p>
+            <button onClick={() => setError(null)} style={{ color: 'var(--danger)' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -242,66 +317,85 @@ export default function Home() {
 
         {/* Backend Offline Warning */}
         {backendOnline === false && (
-          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-fade-in">
-            <p className="text-sm text-amber-300 font-medium">⚠️ Backend API is offline</p>
-            <p className="text-xs text-amber-400/70 mt-1">
-              Please start the backend server. Run: <code className="bg-amber-500/10 px-1.5 py-0.5 rounded">cd backend &amp;&amp; .venv\Scripts\python -m uvicorn app.main:app --reload</code>
+          <div className="mb-5 p-3.5 rounded-lg animate-fade-in"
+            style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--warning)' }}>⚠ Backend API is offline</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Start the backend: <code style={{ background: 'var(--bg-secondary)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>
+                cd backend && .venv\Scripts\python -m uvicorn app.main:app --reload
+              </code>
             </p>
           </div>
         )}
 
-        {/* Two-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ResumePanel
-            resume={resume}
-            isLoading={isParsingResume}
-            onFileSelect={handleFileSelect}
-            onResumeTextChange={handleResumeTextChange}
-            onSectionChange={handleSectionChange}
-            onLoadSample={handleLoadSampleResume}
-          />
-          <JobPanel
-            job={job}
-            onJobChange={handleJobChange}
-            onAnalyze={handleAnalyze}
-            onLoadSample={handleLoadSampleJob}
+        {/* ─── Comparison Workspace ─────────────── */}
+        <div ref={comparisonRef} id="comparison-section" className="pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
+            <ResumePanel
+              resume={resume}
+              isLoading={isParsingResume}
+              onFileSelect={handleFileSelect}
+              onResumeTextChange={handleResumeTextChange}
+              onSectionChange={handleSectionChange}
+              onLoadSample={handleLoadSampleResume}
+            />
+            <JobPanel
+              job={job}
+              onJobChange={handleJobChange}
+              onLoadSample={handleLoadSampleJob}
+            />
+          </div>
+
+          <AnalyzeButton
+            onClick={handleAnalyze}
             isLoading={isAnalyzing}
-            canAnalyze={canAnalyze}
+            disabled={!canAnalyze}
           />
         </div>
 
-        {/* Loading State */}
+        {/* Loading */}
         {isAnalyzing && (
-          <div className="glass-card flex flex-col items-center justify-center py-12 mb-8 animate-pulse-glow">
-            <div className="w-16 h-16 border-3 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
-            <p className="text-sm text-slate-300 font-medium">Analyzing resume match...</p>
-            <p className="text-xs text-slate-500 mt-1">Running ATS scoring pipeline</p>
+          <div className="flex flex-col items-center justify-center py-14">
+            <div className="w-12 h-12 border-[3px] rounded-full animate-spin mb-4"
+              style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent)' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Analyzing resume match...</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Running ATS scoring pipeline</p>
           </div>
         )}
 
-        {/* Results */}
-        {result && !isAnalyzing && <ResultsDashboard result={result} />}
-
-        {/* History */}
-        <div className="mt-8">
-          <HistoryPanel
-            history={history}
-            onSelect={handleHistorySelect}
-            onDelete={handleHistoryDelete}
-            isOpen={historyOpen}
-            onToggle={() => setHistoryOpen(!historyOpen)}
-          />
+        {/* ─── Results ─────────────────────────── */}
+        <div ref={resultsRef}>
+          {result && resume && !isAnalyzing && (
+            <ResultsDashboard result={result} resume={resume} job={job} />
+          )}
         </div>
+
+        {/* ─── History ─────────────────────────── */}
+        <HistoryPanel
+          history={history}
+          onSelect={handleHistorySelect}
+          onDelete={handleHistoryDelete}
+        />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/[0.03] mt-12 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-[10px] text-slate-600">
-            ATS Resume Screener — A simulation tool for educational purposes. Not a real enterprise ATS.
+      {/* ─── Footer ─────────────────────────────── */}
+      <footer className="py-6" style={{ borderTop: '1px solid var(--border-color)' }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+            ATS Resume Screener — A simulation tool for educational purposes.
           </p>
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <ThemeProvider>
+        <HomeContent />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

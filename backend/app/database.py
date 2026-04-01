@@ -1,90 +1,150 @@
 """
-ATS Resume Screener - Supabase Database Client
-Handles all cloud database operations.
+ATS Resume Screener - SQLAlchemy Database Client
+Handles all local SQLite database operations.
 """
-from supabase import create_client, Client
-from app.config import SUPABASE_URL, SUPABASE_KEY
+import os
 import json
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
-# Initialize Supabase client
-_client: Client | None = None
+DB_URL = "sqlite:///./ats.db"
+
+engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# ── DB Models ───────────────────────────────────────────
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    history = relationship("AnalysisHistory", back_populates="user")
+    documents = relationship("Document", back_populates="user")
 
 
-def get_client() -> Client:
-    """Get or create the Supabase client singleton."""
-    global _client
-    if _client is None:
-        if not SUPABASE_URL or not SUPABASE_KEY:
-            raise ValueError(
-                "Supabase credentials not configured. "
-                "Please set SUPABASE_URL and SUPABASE_KEY in backend/.env"
-            )
-        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    return _client
+class Document(Base):
+    """Stores saved resumes or cover letters (parsed text)."""
+    __tablename__ = "documents"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    doc_type = Column(String, nullable=False) # "resume" or "cover_letter"
+    name = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="documents")
 
 
-async def init_tables():
-    """
-    Ensure the required tables exist.
-    If they don't exist, we'll create them via Supabase's auto-schema.
-    NOTE: For production, run the CREATE TABLE SQL in Supabase Dashboard → SQL Editor.
-    """
-    # Tables are created via Supabase Dashboard SQL Editor
-    # This function just verifies connectivity
+class AnalysisHistory(Base):
+    __tablename__ = "history"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Currently optional for anonymous
+    resume_name = Column(String)
+    job_title = Column(String)
+    company = Column(String)
+    overall_score = Column(Float)
+    recommendation = Column(String)
+    result_json = Column(Text) # JSON string of the full AnalysisResult
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="history")
+
+
+# ── Database Init ────────────────────────────────────────
+
+def get_db():
+    db = SessionLocal()
     try:
-        client = get_client()
-        # Quick connectivity check
-        client.table("analyses").select("id").limit(1).execute()
-        return True
-    except Exception as e:
-        print(f"[DB] Warning: Could not connect to Supabase: {e}")
-        print("[DB] The app will work but history won't be saved.")
-        return False
+        yield db
+    finally:
+        db.close()
 
 
-async def save_analysis(data: dict) -> dict | None:
-    """Save an analysis result to Supabase."""
+def init_tables():
+    """Create all tables in the local SQLite db."""
+    Base.metadata.create_all(bind=engine)
+    print("[DB] Local SQLite Database Initialized.")
+    return True
+
+
+# ── Legacy Async Wrappers for History ─────────────────────
+# (Updating existing functions to use sync SQLite instead of Supabase)
+
+async def save_analysis(data: dict, user_id: int = None) -> dict | None:
+    db = SessionLocal()
     try:
-        client = get_client()
-        # Convert nested objects to JSON-serializable format
-        insert_data = {
-            "resume_name": data.get("resume_name", ""),
-            "job_title": data.get("job_title", ""),
-            "company": data.get("company", ""),
-            "overall_score": data.get("overall_score", 0),
-            "recommendation": data.get("recommendation", ""),
-            "result": json.loads(json.dumps(data.get("result", {}), default=str)),
-        }
-        response = client.table("analyses").insert(insert_data).execute()
-        return response.data[0] if response.data else None
+        entry = AnalysisHistory(
+            user_id=user_id,
+            resume_name=data.get("resume_name", ""),
+            job_title=data.get("job_title", ""),
+            company=data.get("company", ""),
+            overall_score=data.get("overall_score", 0),
+            recommendation=data.get("recommendation", ""),
+            result_json=json.dumps(data.get("result", {}), default=str)
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        return {"id": str(entry.id)}
     except Exception as e:
         print(f"[DB] Error saving analysis: {e}")
         return None
+    finally:
+        db.close()
 
 
-async def get_history(limit: int = 20) -> list:
-    """Fetch recent analysis history from Supabase."""
+async def get_history(limit: int = 20, user_id: int = None) -> list:
+    db = SessionLocal()
     try:
-        client = get_client()
-        response = (
-            client.table("analyses")
-            .select("*")
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        return response.data or []
+        query = db.query(AnalysisHistory)
+        if user_id:
+            query = query.filter(AnalysisHistory.user_id == user_id)
+        
+        records = query.order_by(AnalysisHistory.created_at.desc()).limit(limit).all()
+        
+        # Format the output to match what frontend expects
+        results = []
+        for r in records:
+            results.append({
+                "id": str(r.id),
+                "resume_name": r.resume_name,
+                "job_title": r.job_title,
+                "company": r.company,
+                "overall_score": r.overall_score,
+                "recommendation": r.recommendation,
+                "created_at": r.created_at.isoformat() + "Z", # mock ISO UTC
+                "result": json.loads(r.result_json) if r.result_json else None
+            })
+        return results
     except Exception as e:
         print(f"[DB] Error fetching history: {e}")
         return []
+    finally:
+        db.close()
 
 
-async def delete_analysis(analysis_id: str) -> bool:
-    """Delete an analysis record by ID."""
+async def delete_analysis(analysis_id: str, user_id: int = None) -> bool:
+    db = SessionLocal()
     try:
-        client = get_client()
-        client.table("analyses").delete().eq("id", analysis_id).execute()
+        query = db.query(AnalysisHistory).filter(AnalysisHistory.id == int(analysis_id))
+        if user_id:
+            query = query.filter(AnalysisHistory.user_id == user_id)
+            
+        record = query.first()
+        if not record:
+            return False
+            
+        db.delete(record)
+        db.commit()
         return True
     except Exception as e:
         print(f"[DB] Error deleting analysis: {e}")
         return False
+    finally:
+        db.close()

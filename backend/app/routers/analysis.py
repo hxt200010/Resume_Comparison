@@ -3,16 +3,52 @@ ATS Resume Screener - Analysis Router
 Handles resume-to-job matching and analysis.
 """
 from fastapi import APIRouter, HTTPException
-from app.models import AnalysisRequest, AnalysisResult
+from app.models import AnalysisRequest, AnalysisResult, TailorRequest, TailorResult, JobDescriptionInput, ExtractJobRequest
 from app.services.scorer import calculate_overall_score
 from app.services.explainer import generate_explanation, generate_suggestions
-from app.database import save_analysis
+from app.services.tailor import tailor_resume
+from app.services.extractor import extract_job_details
+from app.database import save_analysis, User
+from app.services.auth import get_current_user_optional
+from fastapi import Depends
 
 router = APIRouter(tags=["Analysis"])
 
+@router.post("/extract-job", response_model=JobDescriptionInput)
+async def extract_job_endpoint(request: ExtractJobRequest):
+    """
+    Parse a raw string from a job site into structured JSON attributes.
+    """
+    try:
+        result = await extract_job_details(request)
+        return result
+    except Exception as e:
+        print(f"[API] Error extracting job: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract job details: {str(e)}"
+        )
+
+
+@router.post("/tailor", response_model=TailorResult)
+async def tailor_resume_endpoint(request: TailorRequest):
+    """
+    Rewrite the candidate's professional summary and experience bullet points
+    to natively integrate missing required skills.
+    """
+    try:
+        result = await tailor_resume(request)
+        return result
+    except Exception as e:
+        print(f"[API] Error tailoring resume: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to tailor resume: {str(e)}"
+        )
+
 
 @router.post("/analyze-match", response_model=AnalysisResult)
-async def analyze_match(request: AnalysisRequest):
+async def analyze_match(request: AnalysisRequest, current_user: User = Depends(get_current_user_optional)):
     """
     Compare a parsed resume against a job description.
     
@@ -65,8 +101,9 @@ async def analyze_match(request: AnalysisRequest):
         confidence=result_data["confidence"],
     )
 
-    # Save to Supabase (non-blocking — don't fail if DB is down)
+    # Save to SQLite (non-blocking — don't fail if DB is down)
     try:
+        user_id = current_user.id if current_user else None
         await save_analysis({
             "resume_name": resume.file_name,
             "job_title": job.title or "Untitled",
@@ -74,7 +111,7 @@ async def analyze_match(request: AnalysisRequest):
             "overall_score": result.overall_score,
             "recommendation": result.recommendation,
             "result": result.model_dump(),
-        })
+        }, user_id=user_id)
     except Exception as e:
         print(f"[API] Warning: Could not save to database: {e}")
 

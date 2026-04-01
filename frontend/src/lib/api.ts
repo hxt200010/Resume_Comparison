@@ -1,9 +1,23 @@
 // ATS Resume Screener - API Client
 // Handles all communication with the FastAPI backend
 
-import { ParsedResume, JobDescriptionInput, AnalysisResult, HistoryEntry } from './types';
+import { ParsedResume, JobDescriptionInput, AnalysisResult, HistoryEntry, TailorResult } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+/**
+ * Helper to get Auth Header
+ */
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+};
 
 /**
  * Parse a resume file (PDF, DOCX, or TXT)
@@ -34,7 +48,7 @@ export async function analyzeMatch(
 ): Promise<AnalysisResult> {
   const response = await fetch(`${API_URL}/analyze-match`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ resume, job }),
   });
 
@@ -47,10 +61,34 @@ export async function analyzeMatch(
 }
 
 /**
+ * Request AI to rewrite resume sections to include missing skills
+ */
+export async function tailorResume(
+  resume: ParsedResume,
+  job: JobDescriptionInput,
+  missing_skills: string[],
+): Promise<TailorResult> {
+  const response = await fetch(`${API_URL}/tailor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resume, job, missing_skills }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to tailor resume' }));
+    throw new Error(error.detail || 'Failed to tailor resume');
+  }
+
+  return response.json();
+}
+
+/**
  * Get analysis history from Supabase
  */
 export async function getHistory(limit = 20): Promise<HistoryEntry[]> {
-  const response = await fetch(`${API_URL}/history?limit=${limit}`);
+  const response = await fetch(`${API_URL}/history?limit=${limit}`, {
+    headers: getAuthHeaders()
+  });
   if (!response.ok) return [];
   const data = await response.json();
   return data.history || [];
@@ -60,7 +98,10 @@ export async function getHistory(limit = 20): Promise<HistoryEntry[]> {
  * Delete an analysis from history
  */
 export async function deleteHistoryEntry(id: string): Promise<boolean> {
-  const response = await fetch(`${API_URL}/history/${id}`, { method: 'DELETE' });
+  const response = await fetch(`${API_URL}/history/${id}`, { 
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
   if (!response.ok) return false;
   const data = await response.json();
   return data.success;
@@ -76,4 +117,63 @@ export async function checkHealth(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Auth API Bindings
+ */
+export async function registerUser(email: string, password: string) {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function loginUser(email: string, password: string) {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  if (!res.ok) throw new Error('Invalid credentials');
+  return res.json();
+}
+
+export async function getUserProfile() {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Not authenticated');
+  return res.json();
+}
+
+export async function saveDocument(doc_type: string, name: string, content: string) {
+  const res = await fetch(`${API_URL}/auth/save-document`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ doc_type, name, content })
+  });
+  if (!res.ok) throw new Error('Failed to save document');
+  return res.json();
+}
+
+/**
+ * Request AI to extract job details from a raw posting string
+ */
+export async function extractJob(raw_text: string): Promise<JobDescriptionInput> {
+  const response = await fetch(`${API_URL}/extract-job`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_text }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to extract job details' }));
+    throw new Error(error.detail || 'Failed to extract job details');
+  }
+
+  return response.json();
 }

@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+});
+
 export const metadata: Metadata = {
-  title: "ATS Resume Screener | AI-Powered Resume Analysis",
+  title: "ATS Resume Screener — Compare Your Resume to Any Job Description",
   description:
-    "Evaluate your resume against job descriptions with our ATS-style screening tool. Get match scores, missing skills analysis, and improvement suggestions.",
-  keywords: "ATS, resume screener, resume analysis, job matching, applicant tracking system",
+    "Upload your resume, paste the job posting, and get a clear match score with missing skills analysis and improvement suggestions.",
+  keywords:
+    "ATS, resume screener, resume analysis, job matching, applicant tracking system",
 };
 
 export default function RootLayout({
@@ -14,10 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
-      </body>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

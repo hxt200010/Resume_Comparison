@@ -35,23 +35,31 @@ I built this to understand the mechanics behind ATS screening -- how companies f
 
 If you have already cloned the repo and installed all dependencies before, you just need two terminals.
 
-**Terminal 1 -- start the backend:**
+**Terminal 1 — start the backend (Python):**
 
+**For Windows (PowerShell/Command Prompt):**
+```powershell
+cd backend
+.\.venv\Scripts\activate
+python -m uvicorn app.main:app --reload
+```
+*(Note: Do NOT use the `source` command on Windows. If you get an execution policy error in PowerShell, try running `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` first).*
+
+**For Mac/Linux:**
 ```bash
 cd backend
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Mac/Linux
+source .venv/bin/activate
 python -m uvicorn app.main:app --reload
 ```
 
-**Terminal 2 -- start the frontend:**
+**Terminal 2 — start the frontend (Node.js):**
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser. You should see "API Connected" in the top-right corner once both servers are running. That is all you need.
+Open `http://localhost:3000` in your browser. You should see "Connected" with a green dot in the top-right corner once both servers are running.
 
 If something broke since last time (new dependencies added, etc.), re-run `pip install -r requirements.txt` in the backend and `npm install` in the frontend before starting.
 
@@ -71,7 +79,7 @@ If something broke since last time (new dependencies added, etc.), re-run `pip i
 
 - **Analysis history** -- Every analysis is saved to a Supabase (PostgreSQL) cloud database. You can view, revisit, or delete past analyses from the UI.
 
-- **Dark-themed UI** -- The frontend uses a dark mode design with glassmorphism cards, gradient accents, animated progress bars, and a responsive two-column layout.
+- **Dark & Light Themes** — The frontend features a professional design system with 4 built-in theme presets (Clean Light, Soft Dark, Warm Neutral, Ocean Calm), glassmorphism cards, and a responsive two-column layout.
 
 ---
 

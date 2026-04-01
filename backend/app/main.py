@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import CORS_ORIGINS, API_HOST, API_PORT
-from app.routers import resume, analysis, history
+from app.routers import resume, analysis, history, auth
 from app.database import init_tables
 
 
@@ -15,11 +15,11 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup: Initialize database tables
     print("🚀 Starting ATS Resume Screener API...")
-    db_ok = await init_tables()
+    db_ok = init_tables()
     if db_ok:
-        print("✅ Connected to Supabase")
+        print("✅ Local SQLite database initialized")
     else:
-        print("⚠️  Supabase not connected — history won't be saved")
+        print("⚠️  Failed to initialize local database")
     print(f"📡 API running at http://localhost:{API_PORT}")
     print(f"📄 Docs at http://localhost:{API_PORT}/docs")
     yield
@@ -48,6 +48,7 @@ app.add_middleware(
 app.include_router(resume.router)
 app.include_router(analysis.router)
 app.include_router(history.router)
+app.include_router(auth.router)
 
 
 @app.get("/health", tags=["Health"])
@@ -57,6 +58,16 @@ async def health_check():
         "status": "healthy",
         "service": "ATS Resume Screener",
         "version": "1.0.0",
+    }
+
+
+@app.get("/", tags=["Info"])
+async def root():
+    """Friendly root endpoint."""
+    return {
+        "message": "ATS Resume Screener API is running! 🚀",
+        "docs": f"http://localhost:{API_PORT}/docs",
+        "frontend": "Open http://localhost:3000 in your browser to use the app."
     }
 
 

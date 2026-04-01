@@ -65,3 +65,14 @@ export interface HistoryEntry {
 }
 
 export type RecommendationLevel = 'Strong Match' | 'Moderate Match' | 'Weak Match' | 'Reject / Not Relevant';
+
+export interface TailoredExperience {
+  original: string;
+  tailored: string;
+  injected_skills: string[];
+}
+
+export interface TailorResult {
+  professional_summary: string;
+  experience_bullets: TailoredExperience[];
+}

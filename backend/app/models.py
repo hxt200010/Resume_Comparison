@@ -41,6 +41,11 @@ class JobDescriptionInput(BaseModel):
     degree_required: Optional[str] = ""
 
 
+class ExtractJobRequest(BaseModel):
+    """Request body for extracting job details from raw text."""
+    raw_text: str
+
+
 # ── Analysis Models ───────────────────────────────────────
 
 class ScoreBreakdown(BaseModel):
@@ -89,3 +94,25 @@ class HistoryEntry(BaseModel):
     recommendation: str = ""
     created_at: Optional[str] = None
     result: Optional[AnalysisResult] = None
+
+
+# ── Tailor Models ─────────────────────────────────────────
+
+class TailoredExperience(BaseModel):
+    """A rewritten experience bullet point."""
+    original: str = ""
+    tailored: str = ""
+    injected_skills: list[str] = []
+
+
+class TailorRequest(BaseModel):
+    """Request body for the /tailor endpoint."""
+    resume: ParsedResume
+    job: JobDescriptionInput
+    missing_skills: list[str] = []
+
+
+class TailorResult(BaseModel):
+    """Response containing tailored resume sections."""
+    professional_summary: str = ""
+    experience_bullets: list[TailoredExperience] = []
