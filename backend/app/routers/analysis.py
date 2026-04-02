@@ -103,7 +103,7 @@ async def analyze_match(request: AnalysisRequest, current_user: User = Depends(g
 
     # Run scoring pipeline
     try:
-        result_data = calculate_overall_score(resume, job)
+        result_data = await calculate_overall_score(resume, job)
     except Exception as e:
         raise HTTPException(
             status_code=500,

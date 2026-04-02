@@ -5,7 +5,7 @@ Uses OpenAI to rewrite resume sections to better match the job description.
 import os
 from openai import AsyncOpenAI
 from app.config import OPENAI_API_KEY
-from app.models import TailorRequest, TailorResult, TailoredExperience, TailorCoverLetterRequest, TailorCoverLetterResult
+from app.models import TailorRequest, TailorResult, TailoredBullet, TailorCoverLetterRequest, TailorCoverLetterResult
 
 # Initialize async client if key exists
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -24,11 +24,20 @@ async def tailor_resume(request: TailorRequest) -> TailorResult:
     # Prepare the prompt
     missing_skills_str = ", ".join(request.missing_skills)
     job_title = request.job.title or "the requested job role"
-    
-    # We split experience by lines to treat them as independent bullets
+    # Gather all bullet points from all resume sections
+    all_sections_text = ""
+    if request.resume.sections.experience:
+        all_sections_text += f"\n--- EXPERIENCE ---\n{request.resume.sections.experience}\n"
+    if request.resume.sections.projects:
+        all_sections_text += f"\n--- PROJECTS ---\n{request.resume.sections.projects}\n"
+    if request.resume.sections.education:
+        all_sections_text += f"\n--- EDUCATION ---\n{request.resume.sections.education}\n"
+    if request.resume.sections.certifications:
+        all_sections_text += f"\n--- CERTIFICATIONS ---\n{request.resume.sections.certifications}\n"
+        
     original_bullets = [
         line.strip("-•* \t") 
-        for line in request.resume.sections.experience.split("\n") 
+        for line in all_sections_text.split("\n") 
         if line.strip("-•* \t") and len(line.strip()) > 10
     ]
 
@@ -44,7 +53,8 @@ CRITICAL RULES:
 4. Replace weak verbs with strong action verbs. Make sure the resume sounds exceptionally premium and highly tailored for this exact target role.
 5. Create a 'tailored_skills' list that combines their ORIGINAL SKILLS with the missing keywords that are relevant to their profile.
 6. LENGTH LIMIT: Keep the entire output as concise as possible, restricting the total length to exactly ONE page if possible. If the candidate has extensive career history naturally warranting 2 pages, limit the output strictly to TWO pages maximum. Be ruthless with word economy.
-7. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
+7. For each bullet point you rewrite, explicitly populate the `context` field with the Job Title and Company (or closest associated heading) that it belonged to in the original resume text. e.g., 'Python Developer at BAOVIET LLC'.
+8. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
 """
 
     existing_skills = ", ".join(request.resume.skills_found) if request.resume.skills_found else request.resume.sections.skills
@@ -56,7 +66,7 @@ ORIGINAL SKILLS:
 ORIGINAL PROFESSIONAL SUMMARY:
 {request.resume.sections.summary or 'No summary provided.'}
 
-ORIGINAL EXPERIENCE BULLETS:
+ORIGINAL RESUME BULLETS:
 {chr(10).join('- ' + b for b in original_bullets)}
 """
 

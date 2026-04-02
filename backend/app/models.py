@@ -98,8 +98,9 @@ class HistoryEntry(BaseModel):
 
 # ── Tailor Models ─────────────────────────────────────────
 
-class TailoredExperience(BaseModel):
-    """A rewritten experience bullet point."""
+class TailoredBullet(BaseModel):
+    """A rewritten resume bullet point from any section."""
+    context: str = Field(default="", description="The specific heading, job title, project name, or institution this bullet belongs to, to provide structural context to the user.")
     original: str = ""
     tailored: str = ""
     injected_skills: list[str] = []
@@ -116,7 +117,7 @@ class TailorResult(BaseModel):
     """Response containing tailored resume sections."""
     professional_summary: str = ""
     tailored_skills: list[str] = []
-    experience_bullets: list[TailoredExperience] = []
+    tailored_bullets: list[TailoredBullet] = []
 
 
 # ── Profile Models ────────────────────────────────────────
@@ -195,3 +196,14 @@ class ExtractProfileResult(BaseModel):
     certifications: str
     coursework: str
     experiences: list[ProfileExperience]
+
+
+# ── AI Semantic Matching Models ────────────────────────────
+
+class SemanticMatch(BaseModel):
+    skill: str
+    is_match: bool
+    reasoning: str
+
+class SemanticMatchResult(BaseModel):
+    matches: list[SemanticMatch]

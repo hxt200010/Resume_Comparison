@@ -71,7 +71,8 @@ export interface HistoryEntry {
 
 export type RecommendationLevel = 'Strong Match' | 'Moderate Match' | 'Weak Match' | 'Reject / Not Relevant';
 
-export interface TailoredExperience {
+export interface TailoredBullet {
+  context: string;
   original: string;
   tailored: string;
   injected_skills: string[];
@@ -80,7 +81,7 @@ export interface TailoredExperience {
 export interface TailorResult {
   professional_summary: string;
   tailored_skills: string[];
-  experience_bullets: TailoredExperience[];
+  tailored_bullets: TailoredBullet[];
 }
 
 export interface TailorCoverLetterRequest {
