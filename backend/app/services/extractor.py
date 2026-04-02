@@ -7,7 +7,7 @@ from openai import AsyncOpenAI
 from app.config import OPENAI_API_KEY
 from app.models import (
     JobDescriptionInput, ExtractJobRequest, ReviseRequest, ReviseResult,
-    ExtractProfileRequest, ExtractProfileResult
+    ExtractProfileRequest, ExtractProfileResult, SemanticMatchResult
 )
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
@@ -152,3 +152,45 @@ async def extract_resume_profile(request: ExtractProfileRequest) -> ExtractProfi
     except Exception as e:
         print(f"Error calling OpenAI AI profile extractor API: {e}")
         raise ValueError(f"Failed to extract structured profile: {str(e)}")
+
+
+async def evaluate_semantic_skills(resume_text: str, missing_skills: list[str]) -> list[str]:
+    """
+    Calls OpenAI to semantically evaluate if the user actually possesses the 'missing' skills
+    based on the functional context of their resume, overcoming strict keyword matching.
+    """
+    if not client or not missing_skills:
+        return []
+
+    system_prompt = """
+    You are an expert technical recruiter and ATS parser.
+    The local system failed to find exact keyword matches for the requested required/preferred skills.
+    Your job is to read the candidate's raw resume text and determine if they ACTUALLY possess these skills, even if they use different terminology or describe the functional equivalent.
+    
+    For example:
+    - If the required skill is "MS Excel" and the resume says "Excel", that IS a match.
+    - If the required skill is "Database Concepts" and the resume outlines writing SQL, managing PostgreSQL schemas, or DBA work, that IS a match.
+    - If the required skill is "Computer Programming" and the resume has Python, Java, or C++, that IS a match.
+    
+    Be objective but fair. Only say it is a match if there is clear evidence of the skill or a direct subset/superset of the skill.
+    """
+
+    try:
+        completion = await client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"MISSING SKILLS TO EVALUATE:\n{', '.join(missing_skills)}\n\nRAW RESUME TEXT:\n{resume_text}"}
+            ],
+            response_format=SemanticMatchResult,
+            temperature=0.1,
+        )
+        
+        result = completion.choices[0].message.parsed
+        # Return only the skills that the AI concluded are actually a match
+        recovered_skills = [match.skill for match in result.matches if match.is_match]
+        return recovered_skills
+
+    except Exception as e:
+        print(f"Error calling OpenAI semantic skill matcher: {e}")
+        return []

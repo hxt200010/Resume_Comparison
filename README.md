@@ -169,8 +169,9 @@ To make the project easier to clone, test, and run locally without requiring thi
 
 You need three things installed on your machine before you start:
 
-1. **Python 3.11 or newer**
+1. **Python 3.11 or 3.12 (Highly Recommended)**
    - Download from [python.org/downloads](https://www.python.org/downloads/)
+   - *Note: Do not use newer versions like Python 3.13 or 3.14 unless you have C++ Build Tools installed, as they lack pre-compiled binary wheels for some data science dependencies and will fail to install.*
    - During installation on Windows, make sure to check "Add Python to PATH"
    - To verify it is installed, open a terminal and run: `python --version`
 
@@ -423,7 +424,7 @@ The `-v` flag gives verbose output so you can see each test name and whether it 
 - The backend is not running. Go to the `backend` folder, activate the virtual environment, and run `python -m uvicorn app.main:app --reload`.
 
 **`pip install -r requirements.txt` fails**
-- Make sure you are using Python 3.11 or newer. Run `python --version` to check.
+- Make sure you are using Python 3.11 or 3.12. Run `python --version` to check. If you are using 3.13 or newer, you might get "subprocess-exited-with-error" or warnings about missing C++ visual studio compilers while building `numpy` or `spacy`. Downgrade to 3.12 to fix this instantly!
 - On some systems, you need `python3` instead of `python`.
 - If a specific package fails (especially `spacy`), try installing it individually: `pip install spacy`.
 

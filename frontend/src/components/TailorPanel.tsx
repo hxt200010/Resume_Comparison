@@ -43,9 +43,9 @@ export default function TailorPanel({
     if (!tailorResult) return;
     
     // Instead of randomly stripping experience strings, we can just replace the experience section in the resume text
-    const bulletsText = tailorResult.experience_bullets.map(b => `- ${b.tailored}`).join('\n');
+    const bulletsText = tailorResult.tailored_bullets.map(b => `- ${b.tailored}`).join('\n');
     const skillsText = tailorResult.tailored_skills ? `Skills:\n${tailorResult.tailored_skills.join(', ')}\n\n` : '';
-    let content = `${tailorResult.professional_summary}\n\n${skillsText}Experience:\n${bulletsText}`;
+    let content = `${tailorResult.professional_summary}\n\n${skillsText}Tailored Sections:\n${bulletsText}`;
     
     let mime = 'text/plain';
     
@@ -75,9 +75,9 @@ export default function TailorPanel({
   
   ${tailorResult.tailored_skills && tailorResult.tailored_skills.length > 0 ? `<h3>Skills</h3><p>${tailorResult.tailored_skills.join(', ')}</p>` : ''}
 
-  <h3>Experience</h3>
+  <h3>Tailored Sections</h3>
   <ul>
-    ${tailorResult.experience_bullets.map(b => `<li>${b.tailored}</li>`).join('')}
+    ${tailorResult.tailored_bullets.map(b => `<li>${b.tailored}</li>`).join('')}
   </ul>
 
   ${resume?.sections?.education ? `<h3>Education</h3><p>${resume.sections.education.replace(/\n/g, '<br>')}</p>` : ''}
@@ -179,17 +179,26 @@ export default function TailorPanel({
 
           <div>
             <h4 className="text-sm font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
-              Tailored Experience Bullet Points
+              Tailored Resume Sections
             </h4>
             
-            {tailorResult.experience_bullets.length === 0 ? (
+            {tailorResult.tailored_bullets.length === 0 ? (
               <p className="text-sm text-center py-4 italic" style={{ color: 'var(--text-muted)' }}>
-                No experience bullet points could be naturally modified.
+                No sections could be naturally modified.
               </p>
             ) : (
               <div className="space-y-4">
-                {tailorResult.experience_bullets.map((bullet, idx) => (
+                {tailorResult.tailored_bullets.map((bullet, idx) => (
                   <div key={idx} className="p-4 border rounded-lg" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-card)' }}>
+                    
+                    {/* Context Header */}
+                    {bullet.context && (
+                      <div className="mb-3 pb-2 border-b text-xs font-bold flex items-center gap-1.5 opacity-80" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        {bullet.context}
+                      </div>
+                    )}
+
                     {/* Tags */}
                     {bullet.injected_skills.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2.5">

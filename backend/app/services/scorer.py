@@ -192,7 +192,7 @@ def compute_completeness_score(resume_text: str, sections) -> float:
     return min(score, 100.0)
 
 
-def calculate_overall_score(
+async def calculate_overall_score(
     resume: ParsedResume,
     job: JobDescriptionInput,
 ) -> dict:
@@ -247,6 +247,45 @@ def calculate_overall_score(
         required_skills=job.required_skills,
         preferred_skills=job.preferred_skills,
     )
+
+    # ── Step 2.5: Semantic AI Skill Fallback ──
+    from app.config import USE_OPENAI
+    if USE_OPENAI:
+        from app.services.extractor import evaluate_semantic_skills
+        missing_to_evaluate = skill_result["missing_required"] + skill_result["missing_preferred"]
+        if missing_to_evaluate:
+            recovered_skills = await evaluate_semantic_skills(resume.raw_text, missing_to_evaluate)
+            if recovered_skills:
+                # Update missing_required
+                new_missing_req = []
+                for s in skill_result["missing_required"]:
+                    if s in recovered_skills:
+                        skill_result["matched_required"].append(s)
+                        if s not in skill_result["all_matched"]:
+                            skill_result["all_matched"].append(s)
+                    else:
+                        new_missing_req.append(s)
+                skill_result["missing_required"] = new_missing_req
+                
+                # Update missing_preferred
+                new_missing_pref = []
+                for s in skill_result["missing_preferred"]:
+                    if s in recovered_skills:
+                        skill_result["matched_preferred"].append(s)
+                        if s not in skill_result["all_matched"]:
+                            skill_result["all_matched"].append(s)
+                    else:
+                        new_missing_pref.append(s)
+                skill_result["missing_preferred"] = new_missing_pref
+                
+                # Recalculate scores
+                req_total = len(job.required_skills)
+                if req_total > 0:
+                    skill_result["required_score"] = round(len(skill_result["matched_required"]) / req_total * 100, 1)
+                
+                pref_total = len(job.preferred_skills)
+                if pref_total > 0:
+                    skill_result["preferred_score"] = round(len(skill_result["matched_preferred"]) / pref_total * 100, 1)
 
     # ── Step 3: Compute sub-scores ──
     keyword_score = compute_keyword_overlap(resume.raw_text, job.description)

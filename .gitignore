@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.production
+backend/.env
 
 # Python
 backend/.venv/
@@ -11,6 +12,9 @@ __pycache__/
 # Node
 frontend/node_modules/
 frontend/.next/
+
+# Database
+ats.db
 
 # OS
 .DS_Store
