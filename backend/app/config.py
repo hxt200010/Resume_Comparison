@@ -20,6 +20,9 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 USE_OPENAI = os.getenv("USE_OPENAI", "false").lower() == "true"
 
+# ── Google OAuth ──────────────────────────────────────────
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+
 # ── Scoring Weights (must sum to 1.0) ────────────────────
 # These are easily tunable — change them here to adjust scoring
 SCORING_WEIGHTS = {

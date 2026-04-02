@@ -141,6 +141,10 @@ async def analyze_match(request: AnalysisRequest, current_user: User = Depends(g
             "overall_score": result.overall_score,
             "recommendation": result.recommendation,
             "result": result.model_dump(),
+            "resume_text": resume.raw_text,
+            "job_description": job.description,
+            "resume": resume.model_dump(),
+            "job": job.model_dump()
         }, user_id=user_id)
     except Exception as e:
         print(f"[API] Warning: Could not save to database: {e}")

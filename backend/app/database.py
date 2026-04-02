@@ -71,6 +71,10 @@ class AnalysisHistory(Base):
     overall_score = Column(Float)
     recommendation = Column(String)
     result_json = Column(Text) # JSON string of the full AnalysisResult
+    resume_text = Column(Text, default="")
+    job_description = Column(Text, default="")
+    resume_json = Column(Text, default="{}")
+    job_json = Column(Text, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="history")
@@ -106,7 +110,11 @@ async def save_analysis(data: dict, user_id: int = None) -> dict | None:
             company=data.get("company", ""),
             overall_score=data.get("overall_score", 0),
             recommendation=data.get("recommendation", ""),
-            result_json=json.dumps(data.get("result", {}), default=str)
+            result_json=json.dumps(data.get("result", {}), default=str),
+            resume_text=data.get("resume_text", ""),
+            job_description=data.get("job_description", ""),
+            resume_json=json.dumps(data.get("resume", {}), default=str),
+            job_json=json.dumps(data.get("job", {}), default=str)
         )
         db.add(entry)
         db.commit()
@@ -139,7 +147,11 @@ async def get_history(limit: int = 20, user_id: int = None) -> list:
                 "overall_score": r.overall_score,
                 "recommendation": r.recommendation,
                 "created_at": r.created_at.isoformat() + "Z", # mock ISO UTC
-                "result": json.loads(r.result_json) if r.result_json else None
+                "result": json.loads(r.result_json) if r.result_json else None,
+                "resume_text": r.resume_text,
+                "job_description": r.job_description,
+                "resume": json.loads(r.resume_json) if r.resume_json else None,
+                "job": json.loads(r.job_json) if r.job_json else None
             })
         return results
     except Exception as e:

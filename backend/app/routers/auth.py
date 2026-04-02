@@ -62,6 +62,55 @@ def login(data: AuthData, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "email": user.email}
 
 
+class GoogleAuthData(BaseModel):
+    token: str
+
+@router.post("/google", response_model=TokenResponse)
+def google_auth(data: GoogleAuthData, db: Session = Depends(get_db)):
+    from google.oauth2 import id_token
+    from google.auth.transport import requests
+    from app.config import GOOGLE_CLIENT_ID
+    import string
+    import random
+
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google Login is not configured on the server.")
+
+    try:
+        # Verify the Google token
+        idinfo = id_token.verify_oauth2_token(data.token, requests.Request(), GOOGLE_CLIENT_ID)
+        
+        email = idinfo.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Google token did not provide an email.")
+            
+        # Optional: You can also use idinfo.get("name"), idinfo.get("picture"), etc.
+
+        # Find or create user
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            # Create a user with a random unsable password since they use Google
+            random_pw = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+            user = User(
+                email=email,
+                hashed_password=get_password_hash(random_pw)
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        # Generate our own application JWT token
+        access_token = create_access_token(data={"sub": str(user.id)})
+        return {"access_token": access_token, "token_type": "bearer", "email": user.email}
+
+    except ValueError:
+        # Invalid token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+        )
+
+
 @router.get("/me", response_model=UserProfile)
 def read_users_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Load documents

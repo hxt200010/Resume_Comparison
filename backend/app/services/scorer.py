@@ -206,6 +206,41 @@ def calculate_overall_score(
     # Also include any skills the user already found
     all_resume_skills = list(set(all_resume_skills + resume.skills_found))
 
+    # Fallback: dynamically check if any required/preferred skills exist verbatim in the text
+    # This prevents the scorer from missing skills that aren't defined in the static taxonomy.
+    import re
+    raw_lower = resume.raw_text.lower()
+    for skill in (job.required_skills + job.preferred_skills):
+        skill_lower = skill.lower().strip()
+        if not skill_lower:
+            continue
+        escaped = re.escape(skill_lower)
+        pattern = r"(?:^|[\s,;/|()\[\]\-])(" + escaped + r")(?:[\s,;/|()\[\]\-.]|$)"
+        if re.search(pattern, raw_lower) and skill not in all_resume_skills:
+            all_resume_skills.append(skill)
+            
+    # ── Step 1.5: Atomic Skill Extraction (ATS Emulation) ──
+    # If the user pasted sentences instead of atomic tags, shred them into canonical tags.
+    expanded_required = []
+    for req in job.required_skills:
+        extracted = extract_skills_from_text(req)
+        if extracted:
+            expanded_required.extend(extracted)
+        else:
+            expanded_required.append(req)
+            
+    expanded_preferred = []
+    for pref in job.preferred_skills:
+        extracted = extract_skills_from_text(pref)
+        if extracted:
+            expanded_preferred.extend(extracted)
+        else:
+            expanded_preferred.append(pref)
+
+    # Deduplicate
+    job.required_skills = list(dict.fromkeys(expanded_required))
+    job.preferred_skills = list(dict.fromkeys(expanded_preferred))
+
     # ── Step 2: Match skills ──
     skill_result = match_skills(
         resume_skills=all_resume_skills,

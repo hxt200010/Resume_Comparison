@@ -51,6 +51,7 @@ export interface AnalysisResult {
   suggestions: string[];
   rejection_reasons: string[];
   confidence: number;
+  resume_skills_found?: string[];
 }
 
 export interface HistoryEntry {
@@ -62,6 +63,10 @@ export interface HistoryEntry {
   recommendation: string;
   created_at: string;
   result: AnalysisResult | null;
+  resume_text?: string;
+  job_description?: string;
+  job?: JobDescriptionInput;
+  resume?: ParsedResume;
 }
 
 export type RecommendationLevel = 'Strong Match' | 'Moderate Match' | 'Weak Match' | 'Reject / Not Relevant';
@@ -74,6 +79,7 @@ export interface TailoredExperience {
 
 export interface TailorResult {
   professional_summary: string;
+  tailored_skills: string[];
   experience_bullets: TailoredExperience[];
 }
 

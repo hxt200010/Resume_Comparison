@@ -19,11 +19,7 @@ async def tailor_resume(request: TailorRequest) -> TailorResult:
     if not client:
         raise ValueError("OPENAI_API_KEY is missing. Cannot tailor resume.")
 
-    if not request.missing_skills:
-        return TailorResult(
-            professional_summary="No missing skills to inject! Your resume is already highly optimized.",
-            experience_bullets=[]
-        )
+    # Proceed to tailor even if there are no missing skills, to optimize for ATS algorithms.
 
     # Prepare the prompt
     missing_skills_str = ", ".join(request.missing_skills)
@@ -43,14 +39,20 @@ The candidate is missing these crucial keywords: {missing_skills_str}
 
 CRITICAL RULES:
 1. Do NOT lie or invent experience they do not have.
-2. Only weave in a missing keyword if it logically fits into their existing experience or summary.
-3. Write a compelling, concise Professional Summary that positions them well.
-4. Rewrite their existing experience bullet points to be stronger (using action verbs and metrics) and naturally include the missing keywords where appropriate.
-5. LENGTH LIMIT: Keep the entire output as concise as possible, restricting the total length to exactly ONE page if possible. If the candidate has extensive career history naturally warranting 2 pages, limit the output strictly to TWO pages maximum. Be ruthless with word economy.
-6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
+2. AGGRESSIVELY RESTRUCTURE and REWRITE their bullet points to heavily feature the missing keywords and align closely with the target job description. Your ultimate goal is to maximize their ATS match score!
+3. Ensure every single missing keyword is flawlessly woven into either the Professional Summary or the Experience bullet points. Use standard industry phrasing to hit the scanner's exact phrase checks.
+4. Replace weak verbs with strong action verbs. Make sure the resume sounds exceptionally premium and highly tailored for this exact target role.
+5. Create a 'tailored_skills' list that combines their ORIGINAL SKILLS with the missing keywords that are relevant to their profile.
+6. LENGTH LIMIT: Keep the entire output as concise as possible, restricting the total length to exactly ONE page if possible. If the candidate has extensive career history naturally warranting 2 pages, limit the output strictly to TWO pages maximum. Be ruthless with word economy.
+7. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
 """
 
+    existing_skills = ", ".join(request.resume.skills_found) if request.resume.skills_found else request.resume.sections.skills
+    
     user_message = f"""
+ORIGINAL SKILLS:
+{existing_skills or 'No skills provided.'}
+
 ORIGINAL PROFESSIONAL SUMMARY:
 {request.resume.sections.summary or 'No summary provided.'}
 
@@ -94,15 +96,18 @@ Your task is to tailor a candidate's existing cover letter for a '{job_title}' p
 CRITICAL RULES:
 1. Write like a human, not too AI-alike. Be engaging, authentic, and passionate. Avoid clichés.
 2. Carefully analyze the job description to find the most important required skills.
-3. Compare the job posting with the candidate's existing cover letter layout.
-4. Smoothly rewrite and weave in the required keywords and experiences so that it directly matches the job posting.
-5. Preserve the candidate's original voice, tone, and contact structure.
-6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping.
+3. Compare the job posting with the candidate's existing cover letter layout and the candidate's provided resume data.
+4. Smoothly rewrite and weave in the required keywords and experiences from the user's resume so that it directly matches the job posting. Use the resume to pull facts about the candidate that were not present in the original cover letter.
+5. Preserve the candidate's original voice, tone, and contact structure from the existing cover letter.
+6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping. Write down as human like language as possible.
 """
 
     user_message = f"""
 ORIGINAL COVER LETTER:
 {request.cover_letter_text}
+
+RESUME DATA:
+{request.resume.raw_text if request.resume else 'No resume provided.'}
 
 JOB DESCRIPTION:
 {request.job.description}

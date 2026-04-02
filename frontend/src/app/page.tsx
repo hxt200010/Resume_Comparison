@@ -65,9 +65,13 @@ function HomeContent() {
     checkBackend();
   }, []);
 
-  // Load history on mount
+  // Load history on mount or when user changes
   useEffect(() => {
     const loadHistory = async () => {
+      if (!user) {
+        setHistory([]);
+        return;
+      }
       try {
         const data = await getHistory();
         setHistory(data);
@@ -76,14 +80,26 @@ function HomeContent() {
       }
     };
     loadHistory();
-  }, []);
+  }, [user]);
 
   const refreshHistory = useCallback(async () => {
+    if (!user) return;
     try {
       const data = await getHistory();
       setHistory(data);
     } catch {}
-  }, []);
+  }, [user]);
+
+  // Clear everything on logout
+  useEffect(() => {
+    if (!user) {
+      setResume(null);
+      setJob(EMPTY_JOB);
+      setResult(null);
+      setHistory([]);
+      setError(null);
+    }
+  }, [user]);
 
   // ── Resume Handlers ─────────────────────────
   const handleFileSelect = useCallback(async (file: File) => {
@@ -235,6 +251,26 @@ function HomeContent() {
   const handleHistorySelect = useCallback((entry: HistoryEntry) => {
     if (entry.result) {
       setResult(entry.result);
+      
+      // Load full objects if they exist in history, otherwise piecemeal fallback
+      setResume({
+        file_name: entry.resume?.file_name || entry.resume_name || 'History Resume',
+        raw_text: entry.resume?.raw_text || entry.resume_text || '',
+        sections: entry.resume?.sections || { contact: '', summary: '', skills: '', experience: '', education: '', projects: '', certifications: '' },
+        skills_found: entry.resume?.skills_found || entry.result?.resume_skills_found || []
+      });
+      
+      setJob({
+        title: entry.job?.title || entry.job_title || '',
+        company: entry.job?.company || entry.company || '',
+        description: entry.job?.description || entry.job_description || '', 
+        required_skills: entry.job?.required_skills || [], 
+        preferred_skills: entry.job?.preferred_skills || [], 
+        min_experience: entry.job?.min_experience || 0, 
+        degree_required: entry.job?.degree_required || ''
+      });
+
+      // Scroll to results
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -355,91 +391,108 @@ function HomeContent() {
       )}
 
       {/* ─── Main Content ───────────────────────── */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        {/* Error Banner */}
-        {error && (
-          <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3 animate-fade-in"
-            style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="flex-1 text-sm" style={{ color: 'var(--danger)' }}>{error}</p>
-            <button onClick={() => setError(null)} style={{ color: 'var(--danger)' }}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      {!user ? (
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-32 pt-20 flex flex-col items-center justify-center min-h-[50vh] animate-fade-in text-center">
+          <div className="w-20 h-20 mb-6 border-2 rounded-full flex items-center justify-center shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--accent)' }}>
+             <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+             </svg>
+          </div>
+          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--text-heading)' }}>Access Restricted</h2>
+          <p className="text-lg max-w-lg mb-8 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            Please log in to your account to upload resumes, analyze job matches, access the Magic Tailor, and view your personalized evaluation history.
+          </p>
+          <button onClick={() => setIsLoginOpen(true)} className="btn-primary text-base px-8 py-3 shadow-md">
+             Log In to Continue
+          </button>
+        </main>
+      ) : (
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3 animate-fade-in"
+              style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </button>
-          </div>
-        )}
-
-        {/* Backend Offline Warning */}
-        {backendOnline === false && (
-          <div className="mb-5 p-3.5 rounded-lg animate-fade-in"
-            style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
-            <p className="text-sm font-medium" style={{ color: 'var(--warning)' }}>⚠ Backend API is offline</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              Start the backend: <code style={{ background: 'var(--bg-secondary)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>
-                cd backend && .venv\Scripts\python -m uvicorn app.main:app --reload
-              </code>
-            </p>
-          </div>
-        )}
-
-        {/* ─── Comparison Workspace ─────────────── */}
-        <div ref={comparisonRef} id="comparison-section" className="pt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
-            <div className="md:col-span-1 border-r" style={{ borderColor: 'var(--border-color)' }}>
-              <div className="p-5 h-full">
-                <ResumePanel
-                  resume={resume}
-                  isLoading={isParsingResume}
-                  onFileSelect={handleFileSelect}
-                  onResumeTextChange={handleResumeTextChange}
-                  onSectionChange={handleSectionChange}
-                  onLoadSample={handleLoadSampleResume}
-                  onLoadProfile={handleLoadProfile}
-                  isLoggedIn={!!user}
-                />
-              </div>
+              <p className="flex-1 text-sm" style={{ color: 'var(--danger)' }}>{error}</p>
+              <button onClick={() => setError(null)} style={{ color: 'var(--danger)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <JobPanel
-              job={job}
-              onJobChange={handleJobChange}
-              onLoadSample={handleLoadSampleJob}
+          )}
+
+          {/* Backend Offline Warning */}
+          {backendOnline === false && (
+            <div className="mb-5 p-3.5 rounded-lg animate-fade-in"
+              style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+              <p className="text-sm font-medium" style={{ color: 'var(--warning)' }}>⚠ Backend API is offline</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Start the backend: <code style={{ background: 'var(--bg-secondary)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>
+                  cd backend && .venv\Scripts\python -m uvicorn app.main:app --reload
+                </code>
+              </p>
+            </div>
+          )}
+
+          {/* ─── Comparison Workspace ─────────────── */}
+          <div ref={comparisonRef} id="comparison-section" className="pt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
+              <div className="md:col-span-1 border-r" style={{ borderColor: 'var(--border-color)' }}>
+                <div className="p-5 h-full">
+                  <ResumePanel
+                    resume={resume}
+                    isLoading={isParsingResume}
+                    onFileSelect={handleFileSelect}
+                    onResumeTextChange={handleResumeTextChange}
+                    onSectionChange={handleSectionChange}
+                    onLoadSample={handleLoadSampleResume}
+                    onLoadProfile={handleLoadProfile}
+                    isLoggedIn={!!user}
+                  />
+                </div>
+              </div>
+              <JobPanel
+                job={job}
+                onJobChange={handleJobChange}
+                onLoadSample={handleLoadSampleJob}
+              />
+            </div>
+
+            <AnalyzeButton
+              onClick={handleAnalyze}
+              isLoading={isAnalyzing}
+              disabled={!canAnalyze}
             />
           </div>
 
-          <AnalyzeButton
-            onClick={handleAnalyze}
-            isLoading={isAnalyzing}
-            disabled={!canAnalyze}
-          />
-        </div>
-
-        {/* Loading */}
-        {isAnalyzing && (
-          <div className="flex flex-col items-center justify-center py-14">
-            <div className="w-12 h-12 border-[3px] rounded-full animate-spin mb-4"
-              style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent)' }} />
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Analyzing resume match...</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Running ATS scoring pipeline</p>
-          </div>
-        )}
-
-        {/* ─── Results ─────────────────────────── */}
-        <div ref={resultsRef}>
-          {result && resume && !isAnalyzing && (
-            <ResultsDashboard result={result} resume={resume} job={job} />
+          {/* Loading */}
+          {isAnalyzing && (
+            <div className="flex flex-col items-center justify-center py-14">
+              <div className="w-12 h-12 border-[3px] rounded-full animate-spin mb-4"
+                style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent)' }} />
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Analyzing resume match...</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Running ATS scoring pipeline</p>
+            </div>
           )}
-        </div>
 
-        {/* ─── History ─────────────────────────── */}
-        <HistoryPanel
-          history={history}
-          onSelect={handleHistorySelect}
-          onDelete={handleHistoryDelete}
-        />
-      </main>
+          {/* ─── Results ─────────────────────────── */}
+          <div ref={resultsRef}>
+            {result && resume && !isAnalyzing && (
+              <ResultsDashboard result={result} resume={resume} job={job} />
+            )}
+          </div>
+
+          {/* ─── History ─────────────────────────── */}
+          <HistoryPanel
+            history={history}
+            onSelect={handleHistorySelect}
+            onDelete={handleHistoryDelete}
+          />
+        </main>
+      )}
 
       {/* ─── Footer ─────────────────────────────── */}
       <footer className="py-6" style={{ borderTop: '1px solid var(--border-color)' }}>

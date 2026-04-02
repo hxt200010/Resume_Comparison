@@ -88,11 +88,12 @@ export async function tailorResume(
 export async function tailorCoverLetter(
   cover_letter_text: string,
   job: JobDescriptionInput,
+  resume?: ParsedResume
 ): Promise<TailorCoverLetterResult> {
   const response = await fetch(`${API_URL}/tailor-cover-letter`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cover_letter_text, job }),
+    body: JSON.stringify({ cover_letter_text, job, resume }),
   });
 
   if (!response.ok) {
@@ -160,6 +161,16 @@ export async function loginUser(email: string, password: string) {
     body: JSON.stringify({ email, password })
   });
   if (!res.ok) throw new Error('Invalid credentials');
+  return res.json();
+}
+
+export async function loginWithGoogle(token: string) {
+  const res = await fetch(`${API_URL}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token })
+  });
+  if (!res.ok) throw new Error('Google Login Failed');
   return res.json();
 }
 

@@ -7,9 +7,10 @@ import { useAuth } from './AuthContext';
 
 interface CoverLetterTailorProps {
   job: JobDescriptionInput;
+  resume?: import('../lib/types').ParsedResume;
 }
 
-export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
+export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProps) {
   const { user } = useAuth();
   
   const [baseCoverLetter, setBaseCoverLetter] = useState<string>('');
@@ -56,7 +57,7 @@ export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
     
     setIsGenerating(true);
     try {
-      const res = await tailorCoverLetter(baseCoverLetter, job);
+      const res = await tailorCoverLetter(baseCoverLetter, job, resume);
       setResult(res);
     } catch (e) {
       alert("Failed to tailor cover letter. Please try again.");
@@ -194,7 +195,7 @@ export default function CoverLetterTailor({ job }: CoverLetterTailorProps) {
           {isGenerating && (
              <div className="flex flex-col items-center justify-center p-8">
                <div className="w-10 h-10 border-[3px] rounded-full animate-spin mb-4" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent)' }} />
-               <p className="text-sm font-medium animate-pulse" style={{ color: 'var(--text-primary)' }}>AI is writing like a human...</p>
+               <p className="text-sm font-medium animate-pulse" style={{ color: 'var(--text-primary)' }}>Hang tight... I'm writing your cover letter</p>
              </div>
           )}
 

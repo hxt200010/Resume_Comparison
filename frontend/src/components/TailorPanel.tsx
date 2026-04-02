@@ -3,6 +3,25 @@
 import React from 'react';
 import { TailorResult } from '../lib/types';
 
+function highlightSkills(text: string, skills: string[]) {
+  if (!skills || skills.length === 0) return text;
+  
+  const sortedSkills = [...skills].sort((a, b) => b.length - a.length);
+  const regex = new RegExp(`(${sortedSkills.map(s => s.replace(/[-/\\^$*+?.()|[\\]{}]/g, '\\\\$&')).join('|')})`, 'gi');
+  
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (sortedSkills.some(s => s.toLowerCase() === part.toLowerCase())) {
+          return <span key={i} style={{ color: 'var(--success)', fontWeight: 'bold' }}>{part}</span>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
 interface TailorPanelProps {
   tailorResult: TailorResult | null;
   isLoading: boolean;
@@ -18,16 +37,15 @@ export default function TailorPanel({
   missingSkillsCount,
   resume,
 }: TailorPanelProps) {
-  if (missingSkillsCount === 0 && !tailorResult && !isLoading) {
-    return null; // Don't show if there's nothing to tailor
-  }
+  // We now always render the TailorPanel so users can optimize their resume even if they have 0 missing skills.
 
   const exportTextFile = (type: 'txt' | 'doc') => {
     if (!tailorResult) return;
     
     // Instead of randomly stripping experience strings, we can just replace the experience section in the resume text
     const bulletsText = tailorResult.experience_bullets.map(b => `- ${b.tailored}`).join('\n');
-    let content = `${tailorResult.professional_summary}\n\nExperience:\n${bulletsText}`;
+    const skillsText = tailorResult.tailored_skills ? `Skills:\n${tailorResult.tailored_skills.join(', ')}\n\n` : '';
+    let content = `${tailorResult.professional_summary}\n\n${skillsText}Experience:\n${bulletsText}`;
     
     let mime = 'text/plain';
     
@@ -55,6 +73,8 @@ export default function TailorPanel({
   <h3>Professional Summary</h3>
   <p>${tailorResult.professional_summary}</p>
   
+  ${tailorResult.tailored_skills && tailorResult.tailored_skills.length > 0 ? `<h3>Skills</h3><p>${tailorResult.tailored_skills.join(', ')}</p>` : ''}
+
   <h3>Experience</h3>
   <ul>
     ${tailorResult.experience_bullets.map(b => `<li>${b.tailored}</li>`).join('')}
@@ -139,6 +159,24 @@ export default function TailorPanel({
             </div>
           </div>
 
+          {tailorResult.tailored_skills && tailorResult.tailored_skills.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+                Optimized Skills Section
+              </h4>
+              <div className="p-4 rounded-lg flex flex-wrap gap-2" style={{ background: 'var(--bg-secondary)' }}>
+                {tailorResult.tailored_skills.map((skill, i) => {
+                  const isExisting = resume?.skills_found?.some((s: string) => s.toLowerCase() === skill.toLowerCase());
+                  return (
+                    <span key={i} className={`chip text-sm ${isExisting ? 'chip-success' : 'chip-danger'}`}>
+                      {skill}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <h4 className="text-sm font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
               Tailored Experience Bullet Points
@@ -170,7 +208,9 @@ export default function TailorPanel({
                       </div>
                       <div className="flex gap-2 text-sm">
                         <span className="flex-shrink-0 text-[10px] uppercase font-bold tracking-wider pt-0.5 w-14" style={{ color: 'var(--success)' }}>After:</span>
-                        <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{bullet.tailored}</p>
+                        <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {highlightSkills(bullet.tailored, bullet.injected_skills)}
+                        </p>
                       </div>
                     </div>
                   </div>

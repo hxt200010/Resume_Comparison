@@ -115,6 +115,7 @@ class TailorRequest(BaseModel):
 class TailorResult(BaseModel):
     """Response containing tailored resume sections."""
     professional_summary: str = ""
+    tailored_skills: list[str] = []
     experience_bullets: list[TailoredExperience] = []
 
 
@@ -155,6 +156,7 @@ class UserProfileUpdate(BaseModel):
 class TailorCoverLetterRequest(BaseModel):
     cover_letter_text: str
     job: JobDescriptionInput
+    resume: Optional[ParsedResume] = None
 
 class TailorCoverLetterResult(BaseModel):
     revised_cover_letter: str

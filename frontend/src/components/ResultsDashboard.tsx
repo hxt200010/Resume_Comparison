@@ -16,6 +16,7 @@ interface ResultsDashboardProps {
 function ScoreCard({ score, recommendation, explanation, confidence }: {
   score: number; recommendation: string; explanation: string; confidence: number;
 }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
@@ -92,11 +93,24 @@ function ScoreCard({ score, recommendation, explanation, confidence }: {
             {getSubtext()}
           </p>
           {explanation && (
-            <p className="text-sm leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
-              {explanation}
-            </p>
+            <div className="mb-3">
+              <p className={`text-sm leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`} style={{ color: 'var(--text-secondary)' }}>
+                {explanation}
+              </p>
+              {explanation.length > 120 && (
+                <button 
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, marginTop: '0.25rem',
+                    color: 'var(--accent)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  {isExpanded ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
           )}
-          <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             Confidence: {Math.round(confidence)}%
           </p>
         </div>
@@ -409,7 +423,7 @@ function ScoreBreakdownCard({ result }: { result: AnalysisResult }) {
               {notMetBars.length === 0 && <span className="text-xs text-[var(--text-muted)]">No failing metrics.</span>}
             </div>
 
-            {/* Rejection Flags */}
+            {/* Rejection Flags & Details */}
             <div className="space-y-4 pt-2">
               {result.rejection_reasons.length > 0 && (
                 <div>
@@ -418,6 +432,41 @@ function ScoreBreakdownCard({ result }: { result: AnalysisResult }) {
                     <ul className="space-y-1.5">
                       {result.rejection_reasons.map((reason, i) => (
                         <li key={i} className="text-xs" style={{ color: 'var(--danger)' }}>• {reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {result.missing_required.length > 0 && (
+                <div>
+                  <h5 className="text-[10px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--danger)' }}>Missing Required Skills</h5>
+                  <ul className="space-y-1">
+                    {result.missing_required.map((item, i) => (
+                      <li key={i} className="text-xs pl-2 border-l-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--danger)' }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.missing_preferred.length > 0 && (
+                <div>
+                  <h5 className="text-[10px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Missing Preferred Skills</h5>
+                  <ul className="space-y-1">
+                    {result.missing_preferred.map((item, i) => (
+                      <li key={i} className="text-xs pl-2 border-l-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--warning)' }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.suggestions.length > 0 && (
+                <div className="mt-4">
+                  <h5 className="text-[10px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Recommendations</h5>
+                  <div className="p-3 bg-[var(--bg-secondary)] border rounded-lg" style={{ borderColor: 'var(--accent-subtle)' }}>
+                    <ul className="space-y-2">
+                      {result.suggestions.map((item, i) => (
+                        <li key={i} className="text-xs text-[var(--text-primary)] relative pl-3">
+                           <span className="absolute left-0 top-0 text-[var(--accent)]">•</span>
+                           {item}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -501,7 +550,7 @@ export default function ResultsDashboard({ result, resume, job }: ResultsDashboa
       />
 
       {/* Cover Letter Panel */}
-      <CoverLetterTailor job={job} />
+      <CoverLetterTailor job={job} resume={resume} />
     </div>
   );
 }

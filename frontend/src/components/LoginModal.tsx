@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { loginUser, registerUser } from '../lib/api';
+import { loginUser, registerUser, loginWithGoogle } from '../lib/api';
 import { useAuth } from './AuthContext';
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -63,6 +64,22 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
+  // ── GOOGLE LOGIN submit ─────────────────────────
+  const handleGoogleSuccess = async (response: CredentialResponse) => {
+    if (!response.credential) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await loginWithGoogle(response.credential);
+      login(data.access_token, data.email);
+      handleClose();
+    } catch (err: any) {
+      setError(err.message || 'Google Login failed. Did you configure the backend?');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // ── SIGNUP Step 1 → 2 ──────────────────────────
   const handleStep1Next = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +110,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   // ═══════════════════════════════════════════════════
   //  RENDER
   // ═══════════════════════════════════════════════════
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'UNCONFIGURED';
+  console.log("GOOGLE CLIENT ID LOADED:", clientId);
+
   return (
+    <GoogleOAuthProvider clientId={clientId}>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={handleClose}
@@ -192,6 +213,25 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   {error}
                 </div>
               )}
+
+              <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'center' }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError('Google Login Failed')}
+                  theme="outline"
+                  text="signin_with"
+                  shape="rectangular"
+                />
+              </div>
+
+              <div style={{ 
+                display: 'flex', alignItems: 'center', gap: '1rem', 
+                marginBottom: '1.25rem', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' 
+              }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+                OR
+                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+              </div>
 
               <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
@@ -515,5 +555,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </div>
       </div>
     </div>
+    </GoogleOAuthProvider>
   );
 }
