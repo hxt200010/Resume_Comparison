@@ -81,7 +81,12 @@
     "jwt": ["json web token"],
     "unit testing": ["jest", "pytest", "junit", "mocha", "testing"],
     "integration testing": ["e2e testing", "end to end testing"],
-    "responsive design": ["mobile first", "mobile-first", "rwd"]
+    "responsive design": ["mobile first", "mobile-first", "rwd"],
+    "databricks": ["databrick", "data bricks"],
+    "claude": ["claude ai", "claude code", "anthropic claude"],
+    "openai codex": ["codex"],
+    "palantir foundry": ["palantir"],
+    "cursor": ["cursor ai", "cursor editor"]
   },
   "categories": {
     "programming_languages": [
@@ -113,11 +118,12 @@
       "natural language processing", "computer vision", "tensorflow",
       "pytorch", "scikit-learn", "pandas", "numpy", "data science",
       "data engineering", "spark", "hadoop", "airflow", "tableau",
-      "power bi", "statistics", "big data"
+      "power bi", "statistics", "big data", "databricks", "palantir foundry"
     ],
     "tools_practices": [
       "git", "jira", "agile", "unit testing", "integration testing",
-      "figma", "postman", "swagger", "oauth", "jwt", "api"
+      "figma", "postman", "swagger", "oauth", "jwt", "api",
+      "claude", "openai codex", "cursor"
     ]
   },
   "degree_levels": {

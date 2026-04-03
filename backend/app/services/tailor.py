@@ -3,6 +3,7 @@ ATS Resume Screener - AI Tailoring Service
 Uses OpenAI to rewrite resume sections to better match the job description.
 """
 import os
+from datetime import datetime
 from openai import AsyncOpenAI
 from app.config import OPENAI_API_KEY
 from app.models import TailorRequest, TailorResult, TailoredBullet, TailorCoverLetterRequest, TailorCoverLetterResult
@@ -112,6 +113,9 @@ CRITICAL RULES:
 6. Return ONLY a valid JSON object matching the requested schema. No markdown wrapping. Write down as human like language as possible.
 """
 
+    instructions_block = f"\n\nUSER'S CUSTOM INSTRUCTIONS:\n{request.custom_instructions}\n(Please closely follow these instructions while rewriting the cover letter.)" if request.custom_instructions and request.custom_instructions.strip() else ""
+
+    current_date_str = datetime.now().strftime("%B %d, %Y")
     user_message = f"""
 ORIGINAL COVER LETTER:
 {request.cover_letter_text}
@@ -120,7 +124,10 @@ RESUME DATA:
 {request.resume.raw_text if request.resume else 'No resume provided.'}
 
 JOB DESCRIPTION:
-{request.job.description}
+{request.job.description}{instructions_block}
+
+CURRENT DATE:
+{current_date_str} (Please seamlessly include this exact date at the top of the final cover letter in a standard professional layout, e.g. replacing any existing old dates).
 """
 
     try:

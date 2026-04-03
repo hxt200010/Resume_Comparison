@@ -245,6 +245,14 @@ function HomeContent() {
     }
   }, [resume, job, refreshHistory]);
 
+  const handleNewMatch = useCallback(() => {
+    setResume(null);
+    setJob(EMPTY_JOB);
+    setResult(null);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const canAnalyze = !!(resume?.raw_text && job.description);
 
   // ── History Handlers ────────────────────────
@@ -306,6 +314,13 @@ function HomeContent() {
 
             {/* Nav Links */}
             <nav className="hidden sm:flex items-center gap-5">
+              <button
+                onClick={handleNewMatch}
+                className="text-sm font-medium transition-colors hover:underline"
+                style={{ color: 'var(--accent)' }}
+              >
+                + New Match
+              </button>
               <button
                 onClick={scrollToComparison}
                 className="text-sm font-medium transition-colors"

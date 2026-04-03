@@ -14,6 +14,7 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
   const { user } = useAuth();
   
   const [baseCoverLetter, setBaseCoverLetter] = useState<string>('');
+  const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [result, setResult] = useState<TailorCoverLetterResult | null>(null);
@@ -57,7 +58,7 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
     
     setIsGenerating(true);
     try {
-      const res = await tailorCoverLetter(baseCoverLetter, job, resume);
+      const res = await tailorCoverLetter(baseCoverLetter, job, resume, customInstructions);
       setResult(res);
     } catch (e) {
       alert("Failed to tailor cover letter. Please try again.");
@@ -179,6 +180,16 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
               placeholder="Dear Hiring Manager..."
               value={baseCoverLetter}
               onChange={(e) => setBaseCoverLetter(e.target.value)}
+            />
+          </div>
+          
+          <div className="mt-2">
+            <label className="section-label mb-2">Additional Requests (Optional)</label>
+            <textarea
+              className="input-field min-h-[100px] resize-y text-sm w-full"
+              placeholder="E.g. Focus on my leadership skills, keep it under 3 paragraphs, use a more enthusiastic tone..."
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
             />
           </div>
         </div>

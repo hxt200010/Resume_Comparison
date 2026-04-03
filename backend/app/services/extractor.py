@@ -31,8 +31,8 @@ Your task is to extract the core requirements and fill out a JSON object accurat
 RULES:
 1. `title`: The job title (e.g., 'Software Engineer'). If not found, use "".
 2. `company`: The company name (e.g., 'Google'). If not found, use "".
-3. `required_skills`: An array of MUST-HAVE technical skills or tools mentioned in the text.
-4. `preferred_skills`: An array of NICE-TO-HAVE / PLUS / BONUS skills. If the text does not distinguish, put all core skills in `required_skills` and leave this empty.
+3. `required_skills`: An array of MUST-HAVE hard technical skills, programming languages, libraries, platforms, or tools mentioned in the text (e.g., 'Python', 'React', 'Docker'). DO NOT include soft skills, generic phrases, vague concepts, or broad categories (e.g., exclude 'unstructured text', 'monitoring basics', 'orchestration tools', 'retrieval approaches'). Keep them laser-focused on actual named technologies.
+4. `preferred_skills`: An array of NICE-TO-HAVE / PLUS / BONUS skills. Same strict rules apply: only named hard technical skills. If the text does not distinguish, put all core skills in `required_skills` and leave this empty.
 5. `min_experience`: The minimum years of experience required as an integer. If not stated, return 0. (e.g., '3+ years' -> 3).
 6. `degree_required`: The highest required degree (e.g., "Bachelor's", "Master's"). If not stated, use "".
 7. `description`: Return the original raw text provided by the user so we don't lose the context. BUT strip out random website artifact words like "Apply on LinkedIn" or "27 days ago".
@@ -154,43 +154,49 @@ async def extract_resume_profile(request: ExtractProfileRequest) -> ExtractProfi
         raise ValueError(f"Failed to extract structured profile: {str(e)}")
 
 
-async def evaluate_semantic_skills(resume_text: str, missing_skills: list[str]) -> list[str]:
+async def evaluate_semantic_skills(resume_text: str, skills_to_evaluate: list[str]) -> SemanticMatchResult:
     """
-    Calls OpenAI to semantically evaluate if the user actually possesses the 'missing' skills
-    based on the functional context of their resume, overcoming strict keyword matching.
+    Calls OpenAI to semantically evaluate if the user actually possesses the requested skills
+    based on the functional context of their resume, providing evidence and reasoning.
     """
-    if not client or not missing_skills:
-        return []
+    if not client or not skills_to_evaluate:
+        from app.models import SemanticMatchResult
+        return SemanticMatchResult(matches=[])
 
     system_prompt = """
     You are an expert technical recruiter and ATS parser.
-    The local system failed to find exact keyword matches for the requested required/preferred skills.
-    Your job is to read the candidate's raw resume text and determine if they ACTUALLY possess these skills, even if they use different terminology or describe the functional equivalent.
+    Your job is to read the candidate's raw resume text and determine if they possess each of the requested skills.
     
     For example:
     - If the required skill is "MS Excel" and the resume says "Excel", that IS a match.
     - If the required skill is "Database Concepts" and the resume outlines writing SQL, managing PostgreSQL schemas, or DBA work, that IS a match.
     - If the required skill is "Computer Programming" and the resume has Python, Java, or C++, that IS a match.
+    - If the required skill is a concept like "Statistics" or "Machine Learning" and the candidate lists related university coursework (e.g., "Statistical Method", "Probability"), that IS a match. Academic coursework ALWAYS counts as valid experience for a skill.
+    - If the required skill is plural (e.g., "Databricks") and the resume contains the singular form (e.g., "Databrick"), or vice versa, that IS a match. Pay close attention to slight spelling variations, typos, and abbreviations.
+    - IMPORTANT SEMANTIC MATCHING: If the skills belong to the same tool family, ecosystem, or are strong synonyms (e.g., "Claude Code" vs "Claude AI", "Retrieval Approaches" vs "RAG", "Task Orchestration" vs "orchestration tools"), YOU MUST COUNT THIS AS A MATCH (is_match=true). Do not be overly strict about exact product sub-names.
     
-    Be objective but fair. Only say it is a match if there is clear evidence of the skill or a direct subset/superset of the skill.
+    CRITICAL: For the `skill` field in your JSON schema, you MUST use the exact identical string provided in the "SKILLS TO EVALUATE" list. You MUST return exactly one match evaluation for EVERY SINGLE skill listed.
+    You must take your time to carefully analyze the resume. Explain your step-by-step semantic logic in the `reasoning` field BEFORE deciding whether `is_match` is true or false.
+
+    You should be extremely generous and lenient. If the candidate's keywords, tools, or projects semantically overlap with the required skill, count it as a match (is_match=true). Give the candidate the benefit of the doubt.
     """
 
     try:
+        from app.models import SemanticMatchResult
         completion = await client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"MISSING SKILLS TO EVALUATE:\n{', '.join(missing_skills)}\n\nRAW RESUME TEXT:\n{resume_text}"}
+                {"role": "user", "content": f"SKILLS TO EVALUATE:\n{', '.join(skills_to_evaluate)}\n\nRAW RESUME TEXT:\n{resume_text}"}
             ],
             response_format=SemanticMatchResult,
             temperature=0.1,
         )
         
         result = completion.choices[0].message.parsed
-        # Return only the skills that the AI concluded are actually a match
-        recovered_skills = [match.skill for match in result.matches if match.is_match]
-        return recovered_skills
+        return result
 
     except Exception as e:
         print(f"Error calling OpenAI semantic skill matcher: {e}")
-        return []
+        from app.models import SemanticMatchResult
+        return SemanticMatchResult(matches=[])

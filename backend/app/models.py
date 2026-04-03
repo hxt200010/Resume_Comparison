@@ -158,6 +158,7 @@ class TailorCoverLetterRequest(BaseModel):
     cover_letter_text: str
     job: JobDescriptionInput
     resume: Optional[ParsedResume] = None
+    custom_instructions: Optional[str] = ""
 
 class TailorCoverLetterResult(BaseModel):
     revised_cover_letter: str
@@ -202,8 +203,9 @@ class ExtractProfileResult(BaseModel):
 
 class SemanticMatch(BaseModel):
     skill: str
+    reasoning: str = Field(description="Think step-by-step about whether the candidate has the skill based on the resume. Take your time to carefully connect the dots.")
+    evidence: str = Field(description="If it's a match, provide a short, direct quote from the resume proving they have the skill or related experience. If false, output an empty string.")
     is_match: bool
-    reasoning: str
 
 class SemanticMatchResult(BaseModel):
     matches: list[SemanticMatch]

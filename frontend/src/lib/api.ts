@@ -88,12 +88,13 @@ export async function tailorResume(
 export async function tailorCoverLetter(
   cover_letter_text: string,
   job: JobDescriptionInput,
-  resume?: ParsedResume
+  resume?: ParsedResume,
+  custom_instructions?: string
 ): Promise<TailorCoverLetterResult> {
   const response = await fetch(`${API_URL}/tailor-cover-letter`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cover_letter_text, job, resume }),
+    body: JSON.stringify({ cover_letter_text, job, resume, custom_instructions }),
   });
 
   if (!response.ok) {

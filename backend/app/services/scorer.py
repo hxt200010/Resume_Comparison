@@ -241,51 +241,80 @@ async def calculate_overall_score(
     job.required_skills = list(dict.fromkeys(expanded_required))
     job.preferred_skills = list(dict.fromkeys(expanded_preferred))
 
-    # ── Step 2: Match skills ──
-    skill_result = match_skills(
-        resume_skills=all_resume_skills,
-        required_skills=job.required_skills,
-        preferred_skills=job.preferred_skills,
-    )
+    # ── Step 1.7: Auto-Extract Job Skills (If Missing) ──
+    from app.config import USE_OPENAI
+    if USE_OPENAI and not job.required_skills and not job.preferred_skills and job.description:
+        try:
+            from app.models import ExtractJobRequest
+            from app.services.extractor import extract_job_details
+            extracted_job = await extract_job_details(ExtractJobRequest(raw_text=job.description))
+            job.required_skills = list(dict.fromkeys(extracted_job.required_skills))
+            job.preferred_skills = list(dict.fromkeys(extracted_job.preferred_skills))
+        except Exception as e:
+            print(f"Silent auto-extraction failed: {e}")
 
-    # ── Step 2.5: Semantic AI Skill Fallback ──
+    # ── Step 2: Match skills ──
     from app.config import USE_OPENAI
     if USE_OPENAI:
         from app.services.extractor import evaluate_semantic_skills
-        missing_to_evaluate = skill_result["missing_required"] + skill_result["missing_preferred"]
-        if missing_to_evaluate:
-            recovered_skills = await evaluate_semantic_skills(resume.raw_text, missing_to_evaluate)
-            if recovered_skills:
-                # Update missing_required
-                new_missing_req = []
-                for s in skill_result["missing_required"]:
-                    if s in recovered_skills:
-                        skill_result["matched_required"].append(s)
-                        if s not in skill_result["all_matched"]:
-                            skill_result["all_matched"].append(s)
-                    else:
-                        new_missing_req.append(s)
-                skill_result["missing_required"] = new_missing_req
+        all_job_skills = job.required_skills + job.preferred_skills
+        semantic_result = await evaluate_semantic_skills(resume.raw_text, all_job_skills)
+        
+        matched_required, missing_required = [], []
+        matched_preferred, missing_preferred = [], []
+        
+        # Build lookup for AI outcomes
+        match_lookup = {}
+        if semantic_result and semantic_result.matches:
+            match_lookup = {
+                # Normalizing case slightly just in case the AI tweaked the skill name
+                m.skill.lower().strip(): m for m in semantic_result.matches
+            }
+            
+        def find_match(req_skill: str):
+            req_lower = req_skill.lower().strip()
+            if req_lower in match_lookup:
+                return match_lookup[req_lower]
+            # Substring fallback
+            for k, m_obj in match_lookup.items():
+                if k in req_lower or req_lower in k:
+                    return m_obj
+            return None
+        
+        for req in job.required_skills:
+            m = find_match(req)
+            if m and m.is_match:
+                matched_required.append(req)
+            else:
+                missing_required.append(req)
                 
-                # Update missing_preferred
-                new_missing_pref = []
-                for s in skill_result["missing_preferred"]:
-                    if s in recovered_skills:
-                        skill_result["matched_preferred"].append(s)
-                        if s not in skill_result["all_matched"]:
-                            skill_result["all_matched"].append(s)
-                    else:
-                        new_missing_pref.append(s)
-                skill_result["missing_preferred"] = new_missing_pref
+        for pref in job.preferred_skills:
+            m = find_match(pref)
+            if m and m.is_match:
+                matched_preferred.append(pref)
+            else:
+                missing_preferred.append(pref)
                 
-                # Recalculate scores
-                req_total = len(job.required_skills)
-                if req_total > 0:
-                    skill_result["required_score"] = round(len(skill_result["matched_required"]) / req_total * 100, 1)
-                
-                pref_total = len(job.preferred_skills)
-                if pref_total > 0:
-                    skill_result["preferred_score"] = round(len(skill_result["matched_preferred"]) / pref_total * 100, 1)
+        all_matched = matched_required + matched_preferred
+        req_score = round(len(matched_required) / len(job.required_skills) * 100, 1) if job.required_skills else 100.0
+        pref_score = round(len(matched_preferred) / len(job.preferred_skills) * 100, 1) if job.preferred_skills else 100.0
+        
+        skill_result = {
+            "matched_required": matched_required,
+            "missing_required": missing_required,
+            "matched_preferred": matched_preferred,
+            "missing_preferred": missing_preferred,
+            "all_matched": all_matched,
+            "required_score": req_score,
+            "preferred_score": pref_score
+        }
+    else:
+        # Fallback to local static matching if OpenAI is disabled
+        skill_result = match_skills(
+            resume_skills=all_resume_skills,
+            required_skills=job.required_skills,
+            preferred_skills=job.preferred_skills,
+        )
 
     # ── Step 3: Compute sub-scores ──
     keyword_score = compute_keyword_overlap(resume.raw_text, job.description)
