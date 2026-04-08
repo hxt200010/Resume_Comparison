@@ -67,11 +67,12 @@ export async function tailorResume(
   resume: ParsedResume,
   job: JobDescriptionInput,
   missing_skills: string[],
+  custom_instructions?: string
 ): Promise<TailorResult> {
   const response = await fetch(`${API_URL}/tailor`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resume, job, missing_skills }),
+    body: JSON.stringify({ resume, job, missing_skills, custom_instructions }),
   });
 
   if (!response.ok) {

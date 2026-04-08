@@ -184,6 +184,12 @@ You need three things installed on your machine before you start:
    - Sign up at [supabase.com](https://supabase.com) -- no credit card needed
    - The free tier gives you 500MB of storage and unlimited API requests, which is more than enough
 
+4. **LaTeX Compiler (For PDF Generation)**
+   - The AI Resume Generation feature needs a local LaTeX compiler (`pdflatex`) to generate your PDFs natively.
+   - **Windows:** Install MiKTeX. In PowerShell, run: `winget install MiKTeX.MiKTeX --accept-package-agreements --accept-source-agreements`
+   - **Mac:** Install MacTeX. In terminal, run: `brew install --cask mactex-no-gui`
+   - **Linux:** Install TeX Live. In terminal, run: `sudo apt-get install texlive-latex-base`
+
 ---
 
 ## Setup -- Step by Step (First Time)

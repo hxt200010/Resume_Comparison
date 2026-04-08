@@ -12,6 +12,8 @@ interface ResumePanelProps {
   onSectionChange: (section: keyof ParsedSections, value: string) => void;
   onLoadSample: () => void;
   onLoadProfile?: () => void;
+  onGeneratePDF?: (customInstructions: string) => void;
+  isGeneratingPDF?: boolean;
   isLoggedIn?: boolean;
 }
 
@@ -23,9 +25,12 @@ export default function ResumePanel({
   onSectionChange,
   onLoadSample,
   onLoadProfile,
+  onGeneratePDF,
+  isGeneratingPDF,
   isLoggedIn,
 }: ResumePanelProps) {
   const [showAllSkills, setShowAllSkills] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState('');
 
   return (
     <div className="glass-card flex flex-col gap-5">
@@ -65,14 +70,46 @@ export default function ResumePanel({
 
       {/* Text Fallback */}
       <div>
-        <label className="section-label">Or paste resume text</label>
+        <div className="flex justify-between items-center mb-1">
+            <label className="section-label mb-0">Or paste resume text</label>
+            {resume?.raw_text && (
+                <button 
+                  onClick={() => onGeneratePDF?.(customInstructions)} 
+                  disabled={isGeneratingPDF}
+                  className="btn-primary py-1 px-3 text-xs flex items-center gap-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                >
+                  {isGeneratingPDF ? (
+                    <div className="w-3.5 h-3.5 border-2 rounded-full animate-spin border-white border-t-transparent" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )}
+                  {isGeneratingPDF ? 'Generating PDF...' : 'Download AI PDF'}
+                </button>
+            )}
+        </div>
         <textarea
-          className="input-field min-h-[140px] resize-y text-sm"
+          className="input-field min-h-[140px] resize-y text-sm mb-4"
           placeholder="Paste your full resume here..."
           value={resume?.raw_text || ''}
           onChange={(e) => onResumeTextChange(e.target.value)}
           id="resume-text-input"
         />
+        
+        {resume?.raw_text && (
+          <div className="mt-4 animate-fade-in border-t pt-4" style={{ borderColor: 'var(--border-color)' }}>
+            <label className="section-label mb-1">
+              Custom Instructions for AI (Optional)
+            </label>
+            <textarea
+              className="input-field min-h-[80px] resize-y text-sm"
+              placeholder="e.g., Focus more on backend experience, use a formal tone, include specific formatting..."
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Skills Found (compact) */}

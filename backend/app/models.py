@@ -111,6 +111,7 @@ class TailorRequest(BaseModel):
     resume: ParsedResume
     job: JobDescriptionInput
     missing_skills: list[str] = []
+    custom_instructions: Optional[str] = ""
 
 
 class TailorResult(BaseModel):

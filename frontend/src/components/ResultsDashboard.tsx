@@ -486,11 +486,11 @@ export default function ResultsDashboard({ result, resume, job }: ResultsDashboa
   const [tailorResult, setTailorResult] = useState<TailorResult | null>(null);
   const [isTailoring, setIsTailoring] = useState(false);
 
-  const handleTailor = async () => {
+  const handleTailor = async (customInstructions?: string) => {
     setIsTailoring(true);
     try {
       const missing = [...result.missing_required, ...result.missing_preferred];
-      const res = await tailorResume(resume, job, missing);
+      const res = await tailorResume(resume, job, missing, customInstructions);
       setTailorResult(res);
     } catch (e) {
       alert("Failed to tailor resume. Please check API keys.");

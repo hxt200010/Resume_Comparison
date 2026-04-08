@@ -25,7 +25,7 @@ function highlightSkills(text: string, skills: string[]) {
 interface TailorPanelProps {
   tailorResult: TailorResult | null;
   isLoading: boolean;
-  onTailor: () => void;
+  onTailor: (customInstructions?: string) => void;
   missingSkillsCount: number;
   resume: any;
 }
@@ -37,6 +37,9 @@ export default function TailorPanel({
   missingSkillsCount,
   resume,
 }: TailorPanelProps) {
+  const [customInstructions, setCustomInstructions] = React.useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
+  
   // We now always render the TailorPanel so users can optimize their resume even if they have 0 missing skills.
 
   const exportTextFile = (type: 'txt' | 'doc') => {
@@ -98,6 +101,88 @@ export default function TailorPanel({
     URL.revokeObjectURL(url);
   };
 
+  const handleGeneratePDF = async () => {
+    if (!tailorResult) return;
+    setIsGeneratingPDF(true);
+    try {
+      const contact = resume?.sections?.contact || 'Resume';
+      const summary = tailorResult.professional_summary;
+      const skills = tailorResult.tailored_skills?.join(', ') || '';
+      
+      const bulletsByContext: Record<string, string[]> = {};
+      tailorResult.tailored_bullets.forEach(b => {
+          const ctx = b.context || 'Experience';
+          if (!bulletsByContext[ctx]) bulletsByContext[ctx] = [];
+          bulletsByContext[ctx].push(`- ${b.tailored}`);
+      });
+      
+      const experience = Object.entries(bulletsByContext).map(([ctx, bullets]) => {
+          return `${ctx}\n${bullets.join('\n')}`;
+      }).join('\n\n');
+
+      const education = resume?.sections?.education || '';
+      const certs = resume?.sections?.certifications || '';
+      const projects = resume?.sections?.projects || '';
+
+      const profileText = `
+--- ORIGINAL RAW RESUME DATA FOR CONTEXT ---
+(Use this strictly to find the Candidate's Name, Phone, Email, Location if they are missing or poorly formatted below)
+${resume?.raw_text || ''}
+
+--- TAILORED SECTIONS TO USE FOR THE PDF ---
+
+CONTACT INFO:
+${contact}
+
+SUMMARY:
+${summary}
+
+SKILLS:
+${skills}
+
+EXPERIENCE:
+${experience}
+
+EDUCATION:
+${education}
+
+CERTIFICATIONS:
+${certs}
+
+PROJECTS:
+${projects}
+      `;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/generate-resume-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           profile_text: profileText, 
+           custom_instructions: `Strictly use the provided template format. Treat the EXPERIENCE section data as exact replacements for the experience blocks. Additional User Instructions: ${customInstructions}`
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Tailored_Resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('PDF generation failed.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   return (
     <div className="result-card result-card-full animate-fade-in-up mt-6 border-2" style={{ borderColor: 'var(--accent-subtle)' }}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -113,25 +198,34 @@ export default function TailorPanel({
           </p>
         </div>
 
-        <button
-          onClick={onTailor}
-          disabled={isLoading}
-          className="btn-primary flex-shrink-0"
-        >
-          {isLoading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Tailoring...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-              Rewrite Resume
-            </>
-          )}
-        </button>
+        <div className="flex flex-col gap-2">
+          <textarea
+            className="input-field min-h-[40px] resize-y text-xs px-3 py-2 w-full md:w-64"
+            style={{ minHeight: '40px' }}
+            placeholder="Custom instructions (Optional)..."
+            value={customInstructions}
+            onChange={(e) => setCustomInstructions(e.target.value)}
+          />
+          <button
+            onClick={() => onTailor(customInstructions)}
+            disabled={isLoading}
+            className="btn-primary flex-shrink-0 w-full"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Tailoring...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Rewrite Resume
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {tailorResult && (
@@ -145,6 +239,14 @@ export default function TailorPanel({
              <button onClick={() => exportTextFile('doc')} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: '#2563eb' }}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Export .doc
+             </button>
+             <button onClick={handleGeneratePDF} disabled={isGeneratingPDF} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5 disabled:opacity-50" style={{ background: '#ecfdf5', borderColor: '#10b981', color: '#047857' }}>
+                {isGeneratingPDF ? (
+                   <div className="w-3.5 h-3.5 border-2 rounded-full animate-spin border-t-white" style={{ borderColor: 'rgba(4,120,87,0.3)', borderTopColor: '#047857' }} />
+                ) : (
+                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                )}
+                Export PDF
              </button>
           </div>
           

@@ -16,6 +16,7 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
   const [baseCoverLetter, setBaseCoverLetter] = useState<string>('');
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [result, setResult] = useState<TailorCoverLetterResult | null>(null);
 
@@ -98,6 +99,41 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleGeneratePDF = async () => {
+    if (!result) return;
+    setIsGeneratingPDF(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/generate-cover-letter-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           cover_letter_text: result.revised_cover_letter,
+           profile_text: resume?.raw_text || '',
+           custom_instructions: customInstructions 
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Tailored_CoverLetter.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('PDF generation failed.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
@@ -218,6 +254,14 @@ export default function CoverLetterTailor({ job, resume }: CoverLetterTailorProp
                  </button>
                  <button onClick={() => exportTextFile('doc')} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', color: '#2563eb' }}>
                     Export .doc
+                 </button>
+                 <button onClick={handleGeneratePDF} disabled={isGeneratingPDF} className="px-3 py-1.5 border rounded text-xs font-semibold hover:opacity-80 transition flex items-center gap-1.5 disabled:opacity-50" style={{ background: '#ecfdf5', borderColor: '#10b981', color: '#047857' }}>
+                    {isGeneratingPDF ? (
+                       <div className="w-3.5 h-3.5 border-2 rounded-full animate-spin border-t-white" style={{ borderColor: 'rgba(4,120,87,0.3)', borderTopColor: '#047857' }} />
+                    ) : (
+                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    )}
+                    Export PDF
                  </button>
               </div>
               

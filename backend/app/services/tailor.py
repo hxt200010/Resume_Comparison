@@ -60,6 +60,8 @@ CRITICAL RULES:
 
     existing_skills = ", ".join(request.resume.skills_found) if request.resume.skills_found else request.resume.sections.skills
     
+    instructions_block = f"\n\nUSER'S CUSTOM INSTRUCTIONS:\n{request.custom_instructions}\n(Please deeply integrate and follow these instructions while rewriting the resume content.)" if request.custom_instructions and request.custom_instructions.strip() else ""
+    
     user_message = f"""
 ORIGINAL SKILLS:
 {existing_skills or 'No skills provided.'}
@@ -68,7 +70,7 @@ ORIGINAL PROFESSIONAL SUMMARY:
 {request.resume.sections.summary or 'No summary provided.'}
 
 ORIGINAL RESUME BULLETS:
-{chr(10).join('- ' + b for b in original_bullets)}
+{chr(10).join('- ' + b for b in original_bullets)}{instructions_block}
 """
 
     try:

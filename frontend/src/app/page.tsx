@@ -42,6 +42,7 @@ function HomeContent() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
 
@@ -207,6 +208,43 @@ function HomeContent() {
       setIsParsingResume(false);
     }
   }, [user]);
+
+  const handleGeneratePDF = useCallback(async (customInstructions: string = "") => {
+    if (!resume?.raw_text) {
+      setError("Please load or paste a resume first.");
+      return;
+    }
+    setIsGeneratingPDF(true);
+    setError(null);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/generate-resume-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ profile_text: resume.raw_text, custom_instructions: customInstructions }),
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to generate PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'AI_Tailored_Resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'PDF generation failed');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  }, [resume]);
 
   // ── Job Handlers ────────────────────────────
   const handleJobChange = useCallback((updates: Partial<JobDescriptionInput>) => {
@@ -465,6 +503,8 @@ function HomeContent() {
                     onSectionChange={handleSectionChange}
                     onLoadSample={handleLoadSampleResume}
                     onLoadProfile={handleLoadProfile}
+                    onGeneratePDF={handleGeneratePDF}
+                    isGeneratingPDF={isGeneratingPDF}
                     isLoggedIn={!!user}
                   />
                 </div>

@@ -7,6 +7,18 @@ from app.models import ParsedResume, ExtractProfileRequest, ExtractProfileResult
 from app.services.parser import extract_text, detect_sections
 from app.services.skill_matcher import extract_skills_from_text
 from app.services.extractor import extract_resume_profile
+from app.services.resume_generator import generate_resume_pdf, generate_cover_letter_pdf
+from fastapi.responses import Response
+from pydantic import BaseModel
+
+class GenerateResumePDFRequest(BaseModel):
+    profile_text: str
+    custom_instructions: str = ""
+
+class GenerateCoverLetterPDFRequest(BaseModel):
+    cover_letter_text: str
+    profile_text: str = ""
+    custom_instructions: str = ""
 
 router = APIRouter(tags=["Resume"])
 
@@ -74,5 +86,44 @@ async def extract_profile_endpoint(request: ExtractProfileRequest):
     try:
         result = await extract_resume_profile(request)
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-resume-pdf")
+async def generate_resume_endpoint(request: GenerateResumePDFRequest):
+    """
+    Takes raw profile text, uses AI to perfectly populate a LaTeX template, 
+    compiles it, and directly returns the downloadable PDF file.
+    """
+    try:
+        pdf_bytes = await generate_resume_pdf(request.profile_text, request.custom_instructions)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": "attachment; filename=\"AI_Tailored_Resume.pdf\"",
+                "Content-Type": "application/pdf"
+            }
+        )
+    except Exception as e:
+        # Pass up the exact string so users see any pdflatex error explicitly
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-cover-letter-pdf")
+async def generate_cover_letter_endpoint(request: GenerateCoverLetterPDFRequest):
+    """
+    Takes cover letter text and profile context, uses AI to populate a cover letter LaTeX template,
+    compiles it, and returns the downloadable PDF file.
+    """
+    try:
+        pdf_bytes = await generate_cover_letter_pdf(request.cover_letter_text, request.profile_text, request.custom_instructions)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": "attachment; filename=\"AI_Tailored_CoverLetter.pdf\"",
+                "Content-Type": "application/pdf"
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

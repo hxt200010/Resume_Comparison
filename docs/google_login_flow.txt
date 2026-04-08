@@ -1,0 +1,397 @@
+================================================================================
+          GOOGLE ACCOUNT LOGIN - DETAILED TECHNICAL DOCUMENTATION
+          ATS Resume Screener Application
+================================================================================
+
+
+TABLE OF CONTENTS
+─────────────────
+1. Overview
+2. Files Involved
+3. Environment Variables / Configuration
+4. Frontend Flow (Step by Step)
+5. Backend Flow (Step by Step)
+6. Database Handling
+7. Token / Session Management
+8. First-Time vs Returning Google Users
+9. Error Handling
+10. Security Notes
+
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The app uses Google's OAuth 2.0 "Sign In with Google" (One Tap / button) via
+the @react-oauth/google npm package on the frontend. When a user clicks "Sign
+in with Google," Google returns a JWT credential (an ID token). The frontend
+sends that token to the FastAPI backend, which verifies it using Google's
+`google-auth` Python library. If valid, the backend either finds or creates
+a local user record, generates its own application JWT, and returns it to
+the frontend. From that point on, the app uses its own JWT for all
+authenticated API calls — Google is only involved during the initial sign-in.
+
+
+================================================================================
+2. FILES INVOLVED
+================================================================================
+
+FRONTEND:
+  - frontend/src/components/LoginModal.tsx
+      The main login UI component. Renders the Google Sign-In button using
+      <GoogleOAuthProvider> and <GoogleLogin> from @react-oauth/google.
+      Handles the credential response and calls the API client.
+
+  - frontend/src/lib/api.ts
+      Contains the loginWithGoogle(token) function that POSTs the Google
+      credential token to the backend endpoint /auth/google. Also contains
+      getAuthHeaders() which attaches the app JWT to subsequent requests.
+
+  - frontend/src/components/AuthContext.tsx
+      React context provider that manages global auth state (user, token).
+      Exposes login(), logout(), refreshProfile() functions.
+      Persists the JWT token in localStorage.
+
+  - frontend/package.json
+      Declares the @react-oauth/google (^0.13.4) dependency.
+
+BACKEND:
+  - backend/app/routers/auth.py
+      FastAPI router. Contains the POST /auth/google endpoint that:
+        1) Receives the Google ID token
+        2) Verifies it with Google's library
+        3) Finds or creates a User in the database
+        4) Returns an application JWT + email
+
+  - backend/app/services/auth.py
+      Authentication service providing:
+        - get_password_hash()   → bcrypt hashing (used for random password)
+        - create_access_token() → generates the app's own HS256 JWT
+        - get_current_user()    → decodes JWT from Authorization header
+        - OAuth2PasswordBearer scheme configuration
+
+  - backend/app/config.py
+      Loads GOOGLE_CLIENT_ID from environment variables (.env file).
+      This is the Google OAuth Client ID used to verify tokens.
+
+  - backend/app/database.py
+      SQLAlchemy models. Defines the User table (id, email,
+      hashed_password, created_at) where Google-authenticated users
+      are stored.
+
+  - backend/app/main.py
+      Registers the auth router: app.include_router(auth.router)
+
+
+================================================================================
+3. ENVIRONMENT VARIABLES / CONFIGURATION
+================================================================================
+
+FRONTEND (.env.local or environment):
+  NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      The Google OAuth 2.0 Client ID (from Google Cloud Console).
+      Read in LoginModal.tsx via process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+      Falls back to the string "UNCONFIGURED" if not set.
+
+  NEXT_PUBLIC_API_URL
+      The backend API base URL   (default: http://localhost:8000).
+
+BACKEND (.env or environment):
+  GOOGLE_CLIENT_ID
+      Same Google OAuth Client ID. Used server-side to verify the
+      ID token received from the frontend.
+      Loaded in backend/app/config.py via os.getenv("GOOGLE_CLIENT_ID").
+
+  JWT_SECRET
+      Secret key for signing the application's own JWT tokens.
+      Default: "super-secret-local-key-never-use-in-prod"
+      (should be overridden in production).
+
+
+================================================================================
+4. FRONTEND FLOW (STEP BY STEP)
+================================================================================
+
+Step 1 — Initialization (LoginModal.tsx, lines 113-117)
+    When LoginModal renders, it reads the Google Client ID:
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || 'UNCONFIGURED';
+    It wraps the entire modal in:
+        <GoogleOAuthProvider clientId={clientId}>
+    This initializes the Google Identity Services SDK with the app's client ID.
+
+Step 2 — Rendering the Google Button (LoginModal.tsx, lines 218-222)
+    Inside the login view, a <GoogleLogin> component is rendered:
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => setError('Google Login Failed')}
+          theme="outline"
+          text="signin_with"
+          shape="rectangular"
+        />
+    This renders Google's official iframe-based "Sign in with Google" button.
+    The button appearance is configured as outlined, rectangular, with
+    "Sign in with" text.
+
+Step 3 — User Clicks the Google Button
+    Google handles the entire OAuth popup/redirect flow internally.
+    The user selects their Google account and consents.
+    Google returns a CredentialResponse object to the onSuccess callback.
+
+Step 4 — handleGoogleSuccess Callback (LoginModal.tsx, lines 68-80)
+    async function handleGoogleSuccess(response: CredentialResponse) {
+      if (!response.credential) return;     // Guard: no token
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await loginWithGoogle(response.credential);
+        login(data.access_token, data.email);   // Store in AuthContext
+        handleClose();                           // Close modal
+      } catch (err) {
+        setError(err.message || 'Google Login failed.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    response.credential is a Google-issued JWT (ID token) containing the
+    user's email, name, profile picture URL, etc. This raw JWT string is
+    sent to the backend.
+
+Step 5 — API Call (api.ts, lines 168-176)
+    async function loginWithGoogle(token: string) {
+      const res = await fetch(`${API_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      if (!res.ok) throw new Error('Google Login Failed');
+      return res.json();
+    }
+
+    Sends a POST to /auth/google with body: { "token": "<google_jwt>" }
+    Expects back: { "access_token": "...", "token_type": "bearer", "email": "..." }
+
+Step 6 — AuthContext login() (AuthContext.tsx, lines 55-59)
+    function login(newToken: string, email: string) {
+      setToken(newToken);
+      localStorage.setItem('token', newToken);
+      refreshProfile(newToken);             // Fetches /auth/me for full user data
+    }
+
+    The application JWT is stored in localStorage under key "token".
+    refreshProfile() calls GET /auth/me with the Bearer token to load the
+    user's full profile (id, email, saved documents).
+
+
+================================================================================
+5. BACKEND FLOW (STEP BY STEP)
+================================================================================
+
+Step 1 — Request Arrives at POST /auth/google (routers/auth.py, line 73)
+    The endpoint receives a GoogleAuthData Pydantic model:
+        class GoogleAuthData(BaseModel):
+            token: str
+    The "token" field contains the raw Google ID token JWT.
+
+Step 2 — Check Configuration (routers/auth.py, lines 82-83)
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500,
+            detail="Google Login is not configured on the server.")
+
+    If the GOOGLE_CLIENT_ID env var is empty/missing, the endpoint returns
+    a 500 error immediately.
+
+Step 3 — Verify the Google Token (routers/auth.py, lines 85-88)
+    from google.oauth2 import id_token
+    from google.auth.transport import requests
+
+    idinfo = id_token.verify_oauth2_token(
+        data.token,
+        requests.Request(),
+        GOOGLE_CLIENT_ID
+    )
+
+    This function:
+      a) Fetches Google's public keys (from https://www.googleapis.com/oauth2/v3/certs)
+      b) Verifies the JWT signature
+      c) Checks the "aud" (audience) claim matches the GOOGLE_CLIENT_ID
+      d) Checks the token is not expired
+      e) Returns the decoded payload (dict) with fields like:
+           - "email":          user's email
+           - "email_verified": boolean
+           - "name":           full name
+           - "picture":        profile photo URL
+           - "sub":            Google unique user ID
+           - "iss":            "accounts.google.com"
+           - "aud":            the client ID
+           - "exp":            expiration timestamp
+
+Step 4 — Extract Email (routers/auth.py, lines 90-92)
+    email = idinfo.get("email")
+    if not email:
+        raise HTTPException(status_code=400,
+            detail="Google token did not provide an email.")
+
+Step 5 — Find or Create Local User (routers/auth.py, lines 96-106)
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        random_pw = ''.join(random.choices(
+            string.ascii_letters + string.digits, k=32))
+        user = User(
+            email=email,
+            hashed_password=get_password_hash(random_pw)
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    If the email already exists in the database (e.g., previously registered
+    via email/password or a prior Google login), the existing user is reused.
+    If not, a new user is created with a random 32-character unusable password
+    (since the user authenticates via Google, they never need this password).
+    The random password is bcrypt-hashed before storage.
+
+Step 6 — Generate Application JWT (routers/auth.py, lines 108-109)
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer", "email": user.email}
+
+    create_access_token() (services/auth.py, lines 37-41):
+      - Takes payload: {"sub": "<user_id>"}
+      - Adds expiration: 7 days from now (ACCESS_TOKEN_EXPIRE_MINUTES = 10080)
+      - Signs with HS256 using JWT_SECRET
+      - Returns the encoded JWT string
+
+Step 7 — Response Sent to Frontend
+    JSON response: {
+      "access_token": "<app_jwt>",
+      "token_type": "bearer",
+      "email": "user@gmail.com"
+    }
+
+
+================================================================================
+6. DATABASE HANDLING
+================================================================================
+
+Database: SQLite (file: ./ats.db)
+ORM: SQLAlchemy
+
+User Table (database.py):
+    __tablename__ = "users"
+    ┌──────────────────┬──────────┬──────────────────────────────────┐
+    │ Column           │ Type     │ Notes                            │
+    ├──────────────────┼──────────┼──────────────────────────────────┤
+    │ id               │ Integer  │ Primary key, auto-increment      │
+    │ email            │ String   │ Unique, indexed                  │
+    │ hashed_password  │ String   │ bcrypt hash (random for Google)  │
+    │ created_at       │ DateTime │ UTC timestamp                    │
+    └──────────────────┴──────────┴──────────────────────────────────┘
+
+    Relationships:
+      - history   → AnalysisHistory (one-to-many)
+      - documents → Document (one-to-many)
+      - profile   → UserProfile (one-to-one)
+
+For Google-authenticated users:
+  - The email comes from the verified Google token
+  - hashed_password is set to a bcrypt hash of a random 32-char string
+  - The user can never log in with email/password since the random
+    password is not exposed to anyone
+
+
+================================================================================
+7. TOKEN / SESSION MANAGEMENT
+================================================================================
+
+After Google login, the app uses its OWN JWT (not Google's token) for all
+subsequent API calls:
+
+  - The app JWT is stored in the browser's localStorage under key "token"
+  - For every authenticated request, getAuthHeaders() (api.ts) reads from
+    localStorage and adds: Authorization: Bearer <app_jwt>
+  - The JWT payload contains: { "sub": "<user_id>", "exp": <timestamp> }
+  - Token expiry: 7 days (10,080 minutes)
+  - On page reload, AuthContext checks localStorage for an existing token
+    and calls GET /auth/me to re-validate and load the user profile
+  - On logout, the token is removed from localStorage and user state is cleared
+
+Google's token is ONLY used once — during the initial /auth/google call.
+It is not stored anywhere on the frontend or backend after verification.
+
+
+================================================================================
+8. FIRST-TIME vs RETURNING GOOGLE USERS
+================================================================================
+
+FIRST-TIME Google User:
+  1. Google token is verified
+  2. Email is extracted
+  3. No matching email in "users" table → new User row created
+  4. Random 32-char password generated and bcrypt-hashed
+  5. App JWT created and returned
+  6. User is now logged in
+
+RETURNING Google User:
+  1. Google token is verified
+  2. Email is extracted
+  3. Matching email found in "users" table → existing User row used
+  4. App JWT created and returned
+  5. User is logged in with their existing account + history
+
+EMAIL/PASSWORD User Logging In with Google:
+  If a user originally registered with email/password, and later clicks
+  "Sign in with Google" using the same email, the backend finds the
+  existing user by email and logs them in. Their original password
+  remains unchanged. This effectively links the Google identity to
+  the existing account.
+
+
+================================================================================
+9. ERROR HANDLING
+================================================================================
+
+FRONTEND ERRORS (LoginModal.tsx):
+  - No credential in response  → silently returns (no action)
+  - API call fails              → displays error: "Google Login failed.
+                                   Did you configure the backend?"
+  - Google button itself fails  → displays error: "Google Login Failed"
+  - All errors shown in a red banner inside the login modal
+
+BACKEND ERRORS (routers/auth.py):
+  - GOOGLE_CLIENT_ID not set    → HTTP 500: "Google Login is not configured
+                                   on the server."
+  - Token verification fails    → HTTP 401: "Invalid Google token"
+    (expired, tampered, wrong audience, invalid signature)
+  - No email in token           → HTTP 400: "Google token did not provide
+                                   an email."
+
+CONFIGURATION ERRORS:
+  - Frontend: If NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set, the clientId
+    defaults to "UNCONFIGURED" and the Google button will fail when clicked
+    (Google SDK will reject the invalid client ID).
+  - Backend: If GOOGLE_CLIENT_ID is empty, a 500 error is returned
+    before any token verification is attempted.
+
+
+================================================================================
+10. SECURITY NOTES
+================================================================================
+
+  - Google ID tokens are verified server-side using Google's public keys
+    (never trusted blindly from the frontend)
+  - The audience ("aud") claim is checked against the expected Client ID
+  - The app generates its own JWT after verification, so Google tokens
+    are not stored or reused
+  - Passwords for Google-created users are random and unusable
+  - The JWT secret defaults to a dev placeholder and MUST be changed
+    in production (JWT_SECRET env var)
+  - bcrypt with 12 rounds is used for password hashing
+  - Token expiry is set to 7 days
+  - CORS origins are configurable via CORS_ORIGINS env var
+  - localStorage is used for token persistence (standard for SPAs, but
+    vulnerable to XSS — consider HttpOnly cookies for production)
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
